@@ -1,0 +1,9 @@
+{% extends 'product/form_base.html' %}
+
+{% block title %}Modifier {{ product.title }}{% endblock %}
+
+{% block header_icon %}<i class="bi bi-pencil text-primary me-2"></i>{% endblock %}
+{% block header_title %}Modifier le Produit{% endblock %}
+{% block subtitle %}Modifiez les informations de "{{ product.title }}"{% endblock %}
+
+{% block submit_text %}Enregistrer les Modifications{% endblock %}

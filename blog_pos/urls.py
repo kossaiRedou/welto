@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 
 from order.views import (HomepageView, OrderUpdateView, CreateOrderView, delete_order,
                          OrderListView, done_order_view, auto_create_order_view,
@@ -10,6 +10,8 @@ from order.views import (HomepageView, OrderUpdateView, CreateOrderView, delete_
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', HomepageView.as_view(), name='homepage'),
+    
+    # Gestion des commandes
     path('order-list/', OrderListView.as_view(), name='order_list'),
     path('create/', CreateOrderView.as_view(), name='create-order'),
     path('create-auto/', auto_create_order_view, name='create_auto'),
@@ -18,6 +20,8 @@ urlpatterns = [
     path('delete/<int:pk>/', delete_order, name='delete_order'),
     path('action/<int:pk>/<slug:action>/', order_action_view, name='order_action'),
 
+    # Gestion des produits
+    path('products/', include('product.urls')),
 
     #  ajax_calls
     path('ajax/search-products/<int:pk>/', ajax_search_products, name='ajax-search'),

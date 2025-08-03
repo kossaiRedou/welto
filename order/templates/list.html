@@ -1,154 +1,175 @@
-{% extends 'index.html' %} {% load render_table from django_tables2 %} {% load static %}
+{% extends 'base_with_sidebar.html' %}
+{% load render_table from django_tables2 %}
 
-{% block content %}
-<div class="page-wrapper">
-        <div class="page-breadcrumb">
-            <div class="row">
-                <div class="col-12 d-flex no-block align-items-center">
-                    <h4 class="page-title">Order List</h4>
-                    <div class="ml-auto text-right">
-                        <nav aria-label="breadcrumb">
-                            <ol class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="{% url 'homepage' %}">Home</a></li>
-                                <li class="breadcrumb-item active" aria-current="page">List</li>
-                            </ol>
-                        </nav>
-                    </div>
-                </div>
+{% block title %}Historique des Ventes{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-clock-history me-2"></i>
+Historique des Ventes
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">Toutes vos commandes et ventes</small>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'create-order' %}" class="btn btn-success btn-sm">
+    <i class="bi bi-plus-circle me-1"></i>
+    Nouvelle Vente
+</a>
+{% endblock %}
+
+{% block content_wrapper %}
+<!-- Filtres de recherche -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h6 class="card-title">
+            <i class="bi bi-funnel me-2"></i>
+            Filtres de Recherche
+        </h6>
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Rechercher</label>
+                <input type="text" name="search_name" class="form-control" 
+                       placeholder="Nom de la commande..." value="{{ request.GET.search_name }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Date de début</label>
+                <input type="date" name="date_start" class="form-control" value="{{ request.GET.date_start }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Date de fin</label>
+                <input type="date" name="date_end" class="form-control" value="{{ request.GET.date_end }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search me-1"></i>
+                    Filtrer
+                </button>
+                <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des commandes -->
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="bi bi-list me-2"></i>
+            Liste des Commandes
+        </h6>
+    </div>
+    <div class="card-body">
+        {% if orders %}
+            <div class="table-responsive">
+                {% render_table orders %}
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+                <h4 class="text-muted mt-3">Aucune commande trouvée</h4>
+                <p class="text-muted">
+                    {% if request.GET.search_name or request.GET.date_start or request.GET.date_end %}
+                        Essayez de modifier vos filtres ou 
+                        <a href="{% url 'order_list' %}">voir toutes les commandes</a>
+                    {% else %}
+                        Commencez par créer votre première vente
+                    {% endif %}
+                </p>
+                <a href="{% url 'create-order' %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Créer une Vente
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Résultats de calcul -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h5 class="text-primary">Total des Ventes</h5>
+                <div id="total_sales" class="h4">Calculer...</div>
+                <button class="btn btn-outline-primary btn-sm" onclick="calculateResults()">
+                    <i class="bi bi-calculator me-1"></i>
+                    Calculer
+                </button>
             </div>
         </div>
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="card">
-                        <div class="card-body">
-                            <h4 class="card-title">Latest Orders</h4>
-                        </div>
-                        <div class="comment-widgets scrollable">
-                            {% render_table orders %}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card">
-                        <div class="card-header"><h4>Filters</h4></div>
-                        <div class="card-body">
-                            <form class="form" method="get">
-                                <div class="form-group row">
-                                        <label for="search_name" class="col-sm-3 text-right control-label col-form-label">Search</label>
-                                        <div class="col-sm-9">
-                                            <input type="text"
-                                                   class="form-control"
-                                                   id="search_name"
-                                                   name="search_name"
-                                                   {% if request.GET.search_name %} value="{{ request.GET.search_name }}" {% else %}
-                                                    placeholder="Search Here" {% endif %}
-                                            >
-                                        </div>
-                                </div>
-                                <br><br>
-                                <label>Datepicker</label>
-                                <div class="input-group">
-                                    <input
-                                            name="date_start"
-                                            type="text"
-                                            class="form-control mydatepicker"
-                                            {% if request.GET.date_start %}
-                                            value="{{ request.GET.date_start }}"
-                                            {% else %}
-                                            placeholder="mm/dd/yyyy"
-                                            {% endif %}
-                                    >
-                                    <div class="input-group-append">
-                                        <span class="input-group-text"><i class="fa fa-calendar"></i></span>
-                                    </div>
-                                </div>
-                                <label class="m-t-15">Autoclose Datepicker</label>
-                                <div class="input-group">
-                                    <input
-                                            name="date_end"
-                                            type="text"
-                                            class="form-control"
-                                            id="datepicker-autoclose"
-                                            {% if request.GET.date_end %}
-                                            value="{{ request.GET.date_end }}"
-                                            {% else %}
-                                            placeholder="mm/dd/yyyy"
-                                            {% endif %}
-                                    >
-                                    <div class="input-group-append">
-                                        <span class="input-group-text"><i class="fa fa-calendar"></i></span>
-                                    </div>
-                                </div>
-                                <br>
-                                <button type="submit" class="btn btn-success">Submit</button>
-                                <a href="{{ request.path }}" class="btn btn-warning">Reset</a>
-                            </form>
-                        </div>
-                    </div>
-
-                     <div class="card">
-                        <div class="card-header">
-                            <button data-href="{% url 'ajax_calculate_result' %}" class="btn btn-info result_button">Order Analysis</button>
-                            <button data-href="{% url 'ajax_category_result' %}" class="btn btn-info result_button">Category Analysis</button>
-                        </div>
-                        <div class="card-body" id="result_container">
-                        </div>
-                     </div>
-                </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h5 class="text-success">Montant Payé</h5>
+                <div id="paid_amount" class="h4">Calculer...</div>
             </div>
         </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h5 class="text-warning">En Attente</h5>
+                <div id="remaining_amount" class="h4">Calculer...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Analyse par catégorie -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="bi bi-pie-chart me-2"></i>
+            Analyse par Catégorie
+        </h6>
+    </div>
+    <div class="card-body">
+        <div id="category_analysis">
+            <div class="text-center py-3">
+                <button class="btn btn-info" onclick="calculateCategoryResults()">
+                    <i class="bi bi-graph-up me-1"></i>
+                    Analyser les Ventes par Catégorie
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{% static 'assets/libs/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js' %}"></script>
 <script>
-
-        $('.demo').each(function() {
-        $(this).minicolors({
-                control: $(this).attr('data-control') || 'hue',
-                position: $(this).attr('data-position') || 'bottom left',
-
-                change: function(value, opacity) {
-                    if (!value) return;
-                    if (opacity) value += ', ' + opacity;
-                    if (typeof console === 'object') {
-                        console.log(value);
-                    }
-                },
-                theme: 'bootstrap'
-            });
-
-        });
-        /*datwpicker*/
-        jQuery('.mydatepicker').datepicker();
-        jQuery('#datepicker-autoclose').datepicker({
-            autoclose: true,
-            todayHighlight: true
-        });
-        var quill = new Quill('#editor', {
-            theme: 'snow'
-        });
-
-    </script>
-
-    <script>
-        $('.result_button').click(function (event) {
-            event.preventDefault();
-            const btn = $(this);
-            const href = btn.attr('data-href');
-            const params = window.location.search.substr(1);
-            const url = href + '?' + params;
-            $.ajax({
-                method: 'GET',
-                dataType: 'json',
-                url: url,
-
-                success: function (data) {
-                    $('#result_container').html(data.result)
-                }
-            })
+function calculateResults() {
+    const searchParams = new URLSearchParams(window.location.search);
+    
+    fetch('{% url "ajax_calculate_result" %}?' + searchParams.toString())
+        .then(response => response.json())
+        .then(data => {
+            document.querySelector('#total_sales').innerHTML = data.result;
         })
-    </script>
+        .catch(error => {
+            console.error('Erreur:', error);
+            document.querySelector('#total_sales').innerHTML = 'Erreur de calcul';
+        });
+}
+
+function calculateCategoryResults() {
+    const searchParams = new URLSearchParams(window.location.search);
+    
+    fetch('{% url "ajax_category_result" %}?' + searchParams.toString())
+        .then(response => response.json())
+        .then(data => {
+            document.querySelector('#category_analysis').innerHTML = data.result;
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            document.querySelector('#category_analysis').innerHTML = 'Erreur de calcul';
+        });
+}
+</script>
 {% endblock %}

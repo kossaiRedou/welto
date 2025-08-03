@@ -1,0 +1,141 @@
+{% extends 'product/base.html' %}
+
+{% block title %}Gestion des Catégories{% endblock %}
+
+{% block header_icon %}<i class="bi bi-tags text-info me-2"></i>{% endblock %}
+{% block header_title %}Gestion des Catégories{% endblock %}
+{% block subtitle %}Organisez vos produits par catégories{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Formulaire d'ajout -->
+    <div class="col-md-5">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Nouvelle Catégorie
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="form-group">
+                        <label for="{{ form.title.id_for_label }}" class="form-label">
+                            {{ form.title.label }}
+                        </label>
+                        {{ form.title }}
+                        {% if form.title.help_text %}
+                            <div class="help-text">{{ form.title.help_text }}</div>
+                        {% endif %}
+                        {% if form.title.errors %}
+                            <div class="text-danger mt-1">{{ form.title.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Créer la Catégorie
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Liste des catégories -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-list me-2"></i>
+                    Catégories Existantes ({{ categories|length }})
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if categories %}
+                    <div class="list-group list-group-flush">
+                        {% for category in categories %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ category.title }}</h6>
+                                    <small class="text-muted">
+                                        {{ category.product_set.count }} produit{{ category.product_set.count|pluralize }}
+                                    </small>
+                                </div>
+                                <div>
+                                    <a href="{% url 'product:product_list' %}?category={{ category.id }}" 
+                                       class="btn btn-sm btn-outline-primary me-1"
+                                       title="Voir les produits">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{% url 'product:delete_category' category.pk %}" 
+                                       class="btn btn-sm btn-outline-danger"
+                                       title="Supprimer"
+                                       onclick="return confirm('Supprimer la catégorie {{ category.title }} ?')">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-tags text-muted" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted mt-3">Aucune Catégorie</h5>
+                        <p class="text-muted">Créez votre première catégorie pour organiser vos produits</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if categories %}
+<div class="mt-4">
+    <div class="card border-info">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0">
+                <i class="bi bi-info-circle me-2"></i>
+                Conseils d'Organisation
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Exemples de Catégories :</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-check-circle text-success me-1"></i> Céréales & Légumineuses</li>
+                        <li><i class="bi bi-check-circle text-success me-1"></i> Boissons</li>
+                        <li><i class="bi bi-check-circle text-success me-1"></i> Produits Laitiers</li>
+                        <li><i class="bi bi-check-circle text-success me-1"></i> Épices & Condiments</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Bonnes Pratiques :</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-lightbulb text-warning me-1"></i> Utilisez des noms courts et clairs</li>
+                        <li><i class="bi bi-lightbulb text-warning me-1"></i> Groupez les produits similaires</li>
+                        <li><i class="bi bi-lightbulb text-warning me-1"></i> Évitez trop de catégories</li>
+                        <li><i class="bi bi-lightbulb text-warning me-1"></i> Pensez à vos clients</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block actions %}
+<div class="btn-group-actions">
+    <a href="{% url 'product:management_home' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>
+        Retour à la Gestion
+    </a>
+    <a href="{% url 'product:product_list' %}" class="btn btn-primary">
+        <i class="bi bi-box-seam me-1"></i>
+        Voir les Produits
+    </a>
+</div>
+{% endblock %}

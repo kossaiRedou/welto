@@ -1,0 +1,74 @@
+{% extends 'product/base.html' %}
+
+{% block content %}
+<form method="post">
+    {% csrf_token %}
+    
+    {% for field in form %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}" class="form-label">
+                {{ field.label }}
+                {% if field.field.required %}
+                    <span class="required">*</span>
+                {% endif %}
+            </label>
+            
+            {% if field.name == 'value' or field.name == 'discount_value' %}
+                <div class="input-group">
+                    {{ field }}
+                    <span class="input-group-text">GMD</span>
+                </div>
+            {% elif field.name == 'qty' %}
+                <div class="input-group">
+                    {{ field }}
+                    <span class="input-group-text">unités</span>
+                </div>
+            {% elif field.name == 'active' %}
+                <div class="form-check">
+                    {{ field }}
+                    <label class="form-check-label" for="{{ field.id_for_label }}">
+                        {{ field.label }}
+                    </label>
+                </div>
+            {% else %}
+                {{ field }}
+            {% endif %}
+            
+            {% if field.help_text %}
+                <div class="help-text">{{ field.help_text }}</div>
+            {% endif %}
+            
+            {% if field.name == 'category' %}
+                <div class="help-text">
+                    <a href="{% url 'product:category_management' %}" class="text-decoration-none">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Créer une nouvelle catégorie
+                    </a>
+                </div>
+            {% endif %}
+            
+            {% if field.errors %}
+                <div class="text-danger mt-1">
+                    {% for error in field.errors %}
+                        <small>{{ error }}</small>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+</form>
+{% endblock %}
+
+{% block action_buttons %}
+<button type="submit" form="id_form" class="btn btn-success">
+    <i class="bi bi-check-circle me-1"></i>
+    {% block submit_text %}Enregistrer{% endblock %}
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Ajouter l'ID au formulaire pour le bouton submit externe
+document.querySelector('form').id = 'id_form';
+</script>
+{% endblock %}

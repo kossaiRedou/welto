@@ -1,0 +1,96 @@
+{% extends 'product/base.html' %}
+
+{% block title %}Supprimer {{ category.title }}{% endblock %}
+
+{% block header_icon %}<i class="bi bi-trash text-danger me-2"></i>{% endblock %}
+{% block header_title %}Supprimer la Catégorie{% endblock %}
+{% block subtitle %}Êtes-vous sûr de vouloir supprimer cette catégorie ?{% endblock %}
+
+{% block content %}
+{% with product_count=category.product_set.count %}
+<div class="alert alert-warning" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Attention !</strong> 
+    {% if product_count > 0 %}
+        Cette catégorie contient {{ product_count }} produit{{ product_count|pluralize }}. 
+        Ces produits seront marqués comme "Sans catégorie".
+    {% else %}
+        Cette action est irréversible.
+    {% endif %}
+</div>
+
+<div class="card border-danger">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="card-title">{{ category.title }}</h5>
+                <p class="card-text">
+                    <strong>Produits dans cette catégorie :</strong> {{ product_count }}<br>
+                    {% if product_count > 0 %}
+                        <small class="text-muted">
+                            Les produits ne seront pas supprimés, seulement leur catégorie sera retirée.
+                        </small>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-{% if product_count > 0 %}warning{% else %}secondary{% endif %} fs-6">
+                    {{ product_count }} produit{{ product_count|pluralize }}
+                </span>
+            </div>
+        </div>
+        
+        {% if product_count > 0 %}
+            <hr>
+            <h6>Produits affectés :</h6>
+            <div class="row">
+                {% for product in category.product_set.all|slice:":6" %}
+                    <div class="col-md-6 mb-2">
+                        <small class="text-muted">• {{ product.title }}</small>
+                    </div>
+                {% endfor %}
+                {% if product_count > 6 %}
+                    <div class="col-12">
+                        <small class="text-muted">... et {{ product_count|add:"-6" }} autre{{ product_count|add:"-6"|pluralize }}</small>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<form method="post" class="mt-4">
+    {% csrf_token %}
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="confirm_delete" required>
+        <label class="form-check-label" for="confirm_delete">
+            Je confirme vouloir supprimer définitivement cette catégorie
+            {% if product_count > 0 %}
+                et retirer la catégorie de {{ product_count }} produit{{ product_count|pluralize }}
+            {% endif %}
+        </label>
+    </div>
+</form>
+{% endwith %}
+{% endblock %}
+
+{% block back_text %}Retour aux Catégories{% endblock %}
+
+{% block action_buttons %}
+<button type="submit" form="delete_form" class="btn btn-danger" disabled id="delete_btn">
+    <i class="bi bi-trash me-1"></i>
+    Supprimer Définitivement
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Ajouter l'ID au formulaire
+document.querySelector('form').id = 'delete_form';
+
+// Activer/désactiver le bouton de suppression
+document.getElementById('confirm_delete').addEventListener('change', function() {
+    document.getElementById('delete_btn').disabled = !this.checked;
+});
+</script>
+{% endblock %}

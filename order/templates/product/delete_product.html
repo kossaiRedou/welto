@@ -1,0 +1,75 @@
+{% extends 'product/base.html' %}
+
+{% block title %}Supprimer {{ product.title }}{% endblock %}
+
+{% block header_icon %}<i class="bi bi-trash text-danger me-2"></i>{% endblock %}
+{% block header_title %}Supprimer le Produit{% endblock %}
+{% block subtitle %}Êtes-vous sûr de vouloir supprimer ce produit ?{% endblock %}
+
+{% block content %}
+<div class="alert alert-danger" role="alert">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Attention !</strong> Cette action est irréversible.
+</div>
+
+<div class="card border-danger">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h5 class="card-title">{{ product.title }}</h5>
+                <p class="card-text">
+                    <strong>Catégorie :</strong> {{ product.category.title|default:"Sans catégorie" }}<br>
+                    <strong>Prix :</strong> 
+                    {% if product.discount_value > 0 %}
+                        <span class="text-decoration-line-through">{{ product.value }} GMD</span>
+                        <span class="text-success ms-2">{{ product.discount_value }} GMD</span>
+                    {% else %}
+                        {{ product.value }} GMD
+                    {% endif %}<br>
+                    <strong>Stock :</strong> {{ product.qty }} unité{{ product.qty|pluralize }}<br>
+                    <strong>Statut :</strong> 
+                    {% if product.active %}
+                        <span class="badge bg-success">Actif</span>
+                    {% else %}
+                        <span class="badge bg-secondary">Inactif</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <span class="badge bg-{% if product.qty > 5 %}success{% elif product.qty > 0 %}warning{% else %}danger{% endif %} fs-6">
+                    {{ product.qty }} en stock
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" class="mt-4">
+    {% csrf_token %}
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="confirm_delete" required>
+        <label class="form-check-label" for="confirm_delete">
+            Je confirme vouloir supprimer définitivement ce produit
+        </label>
+    </div>
+</form>
+{% endblock %}
+
+{% block action_buttons %}
+<button type="submit" form="delete_form" class="btn btn-danger" disabled id="delete_btn">
+    <i class="bi bi-trash me-1"></i>
+    Supprimer Définitivement
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Ajouter l'ID au formulaire
+document.querySelector('form').id = 'delete_form';
+
+// Activer/désactiver le bouton de suppression
+document.getElementById('confirm_delete').addEventListener('change', function() {
+    document.getElementById('delete_btn').disabled = !this.checked;
+});
+</script>
+{% endblock %}

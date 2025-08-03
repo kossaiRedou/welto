@@ -1,58 +1,175 @@
-{% extends 'index.html' %} {% load render_table from django_tables2 %}
+{% extends 'base_with_sidebar.html' %}
+{% load render_table from django_tables2 %}
 
-{% block content %}
-    <div class="page-wrapper">
-        <div class="page-breadcrumb">
-            <div class="row">
-                <div class="col-12 d-flex no-block align-items-center">
-                    <h4 class="page-title">{{ instance.date }} - {{ instance }}</h4>
-                    <div class="ml-auto text-right">
-                        <nav aria-label="breadcrumb">
-                            <ol class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="{% url 'homepage' %}">Home</a></li>
-                                <li class="breadcrumb-item active" aria-current="page">{{ instance }}</li>
-                            </ol>
-                        </nav>
-                    </div>
+{% block title %}Modifier Commande - {{ instance.title|default:"Commande" }}{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-pencil-square me-2"></i>
+Modifier la Commande
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">{{ instance.date|date:"d/m/Y" }} - {{ instance.title|default:"Commande sans nom" }}</small>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'order_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-list me-1"></i>
+    Historique
+</a>
+<a href="{% url 'create-order' %}" class="btn btn-success btn-sm">
+    <i class="bi bi-plus-circle me-1"></i>
+    Nouvelle Vente
+</a>
+{% endblock %}
+
+{% block content_wrapper %}
+<div class="row">
+    <!-- Section Produits -->
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-box-seam me-2"></i>
+                    Ajouter des Produits
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <input data-href='{% url "ajax-search" instance.id %}' 
+                           type="text" 
+                           class="form-control search_button" 
+                           placeholder="🔍 Rechercher un produit...">
+                </div>
+                <div id="product_container">
+                    {% include 'include/product_container.html' %}
                 </div>
             </div>
-        </div>
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="header">
-                            <h5 class="card-title">Products</h5>
-                            <input data-href='{% url "ajax-search" instance.id %}' type="text" class="form-control search_button" placeholder="Search">
-                        </div>
-                        <div class="card-body" id="product_container">
-
-                            {% include 'include/product_container.html' %}
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div id='order_item_container' class="card-body">
-                            {% include 'include/order_container.html' %}
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <div class="header">Edit</div>
-                        <div class="card-body">
-                            <form method="post" class="form">{% csrf_token %}
-                                {{ form }}
-                                <br>
-                                <button type="submit" class="btn btn-success">Save</button>
-                            </form>
-                        </div>
-                    </div>
-            </div>
-        </div>
         </div>
     </div>
 
+    <!-- Section Commande -->
+    <div class="col-lg-6 mb-4">
+        <!-- Détails de la commande -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-receipt me-2"></i>
+                    Détails de la Commande
+                </h6>
+            </div>
+            <div id='order_item_container' class="card-body">
+                {% include 'include/order_container.html' %}
+            </div>
+        </div>
+
+        <!-- Formulaire de modification -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-gear me-2"></i>
+                    Paramètres de la Commande
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post" class="form">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        {% for field in form %}
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ field.id_for_label }}" class="form-label">
+                                    {{ field.label }}
+                                    {% if field.field.required %}
+                                        <span class="text-danger">*</span>
+                                    {% endif %}
+                                </label>
+                                
+                                {% if field.name == 'date' %}
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="bi bi-calendar"></i>
+                                        </span>
+                                        {{ field }}
+                                    </div>
+                                {% elif field.name == 'discount' %}
+                                    <div class="input-group">
+                                        {{ field }}
+                                        <span class="input-group-text">GMD</span>
+                                    </div>
+                                {% elif field.name == 'is_paid' %}
+                                    <div class="form-check">
+                                        {{ field }}
+                                        <label class="form-check-label" for="{{ field.id_for_label }}">
+                                            {{ field.label }}
+                                        </label>
+                                    </div>
+                                {% else %}
+                                    {{ field }}
+                                {% endif %}
+                                
+                                {% if field.help_text %}
+                                    <div class="form-text">{{ field.help_text }}</div>
+                                {% endif %}
+                                
+                                {% if field.errors %}
+                                    <div class="text-danger mt-1">
+                                        {% for error in field.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-3">
+                        <a href="{% url 'delete_order' instance.pk %}" class="btn btn-outline-danger">
+                            <i class="bi bi-trash me-1"></i>
+                            Supprimer
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>
+                            Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions rapides -->
+<div class="card mt-4">
+    <div class="card-body">
+        <div class="row text-center">
+            <div class="col-md-3">
+                <button class="btn btn-info w-100" onclick="window.print()">
+                    <i class="bi bi-printer me-1"></i>
+                    Imprimer
+                </button>
+            </div>
+            <div class="col-md-3">
+                <a href="{% url 'done_order' instance.pk %}" class="btn btn-success w-100">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Marquer Payé
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{% url 'create-order' %}" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Nouvelle Vente
+                </a>
+            </div>
+            <div class="col-md-3">
+                <a href="{% url 'homepage' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-house me-1"></i>
+                    Retour Accueil
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}

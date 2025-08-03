@@ -1,0 +1,276 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}Gestion des Produits{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-box-seam me-2"></i>
+Gestion des Produits
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">Interface simple pour gérer vos produits</small>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'product:add_product' %}" class="btn btn-success btn-sm">
+    <i class="bi bi-plus-circle me-1"></i>
+    Nouveau Produit
+</a>
+{% endblock %}
+
+{% block content_wrapper %}
+<div class="row mb-4">
+
+        <!-- Statistiques rapides -->
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6">
+                <div class="stats-card primary">
+                    <div class="stats-number">{{ total_products }}</div>
+                    <div class="stats-label">
+                        <i class="bi bi-box me-1"></i>
+                        Produits Actifs
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stats-card success">
+                    <div class="stats-number">{{ categories_count }}</div>
+                    <div class="stats-label">
+                        <i class="bi bi-tags me-1"></i>
+                        Catégories
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stats-card warning">
+                    <div class="stats-number">{{ low_stock_count }}</div>
+                    <div class="stats-label">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Stock Faible
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stats-card danger">
+                    <div class="stats-number">{{ out_of_stock_count }}</div>
+                    <div class="stats-label">
+                        <i class="bi bi-x-circle me-1"></i>
+                        En Rupture
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions rapides -->
+        <div class="row mb-4 mt-3">
+            <div class="col-md-4 mb-3">
+                <div class="action-card">
+                    <i class="bi bi-plus-circle text-success" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3">Nouveau Produit</h5>
+                    <p class="text-muted">Ajouter un produit à votre inventaire</p>
+                    <a href="{% url 'product:add_product' %}" class="btn btn-success">
+                        <i class="bi bi-plus me-1"></i>
+                        Ajouter
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="action-card">
+                    <i class="bi bi-list-ul text-primary" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3">Tous les Produits</h5>
+                    <p class="text-muted">Voir et gérer tous vos produits</p>
+                    <a href="{% url 'product:product_list' %}" class="btn btn-primary">
+                        <i class="bi bi-eye me-1"></i>
+                        Voir Tout
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="action-card">
+                    <i class="bi bi-tags text-info" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3">Catégories</h5>
+                    <p class="text-muted">Organiser vos produits par catégorie</p>
+                    <a href="{% url 'product:category_management' %}" class="btn btn-info">
+                        <i class="bi bi-gear me-1"></i>
+                        Gérer
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+
+        <div class="row">
+            <!-- Produits récents -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock me-2"></i>
+                            Produits Récents
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if recent_products %}
+                            {% for product in recent_products %}
+                                <div class="product-item">
+                                    <div>
+                                        <strong>{{ product.title }}</strong><br>
+                                        <small class="text-muted">
+                                            {{ product.category.title|default:"Sans catégorie" }}
+                                        </small>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fw-bold">{{ product.final_value }} GMD</div>
+                                        <span class="badge bg-{% if product.qty > 5 %}success{% elif product.qty > 0 %}warning{% else %}danger{% endif %} stock-badge">
+                                            Stock: {{ product.qty }}
+                                        </span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-muted">Aucun produit ajouté récemment.</p>
+                        {% endif %}
+                        <div class="text-center mt-3">
+                            <a href="{% url 'product:product_list' %}" class="btn btn-outline-primary btn-sm">
+                                Voir tous les produits
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alertes stock -->
+            <div class="col-lg-6">
+                <!-- Stock faible -->
+                {% if low_stock_products %}
+                    <div class="card mb-3">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Stock Faible (< 5 unités)
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            {% for product in low_stock_products %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>{{ product.title }}</strong><br>
+                                        <small class="text-muted">{{ product.category.title|default:"Sans catégorie" }}</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-warning">{{ product.qty }} restant{{ product.qty|pluralize }}</span><br>
+                                        <a href="{% url 'product:quick_stock' product.pk %}" class="btn btn-sm btn-outline-warning mt-1">
+                                            <i class="bi bi-plus"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Rupture de stock -->
+                {% if out_of_stock_products %}
+                    <div class="card">
+                        <div class="card-header bg-danger text-white">
+                            <h6 class="mb-0">
+                                <i class="bi bi-x-circle me-2"></i>
+                                Rupture de Stock
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            {% for product in out_of_stock_products %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <strong>{{ product.title }}</strong><br>
+                                        <small class="text-muted">{{ product.category.title|default:"Sans catégorie" }}</small>
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'product:quick_stock' product.pk %}" class="btn btn-sm btn-danger">
+                                            <i class="bi bi-arrow-up me-1"></i>
+                                            Réapprovisionner
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if not low_stock_products and not out_of_stock_products %}
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <h5 class="text-success mt-3">Stock en Bon État</h5>
+                            <p class="text-muted">Tous vos produits sont bien approvisionnés!</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+        border-left: 4px solid #dee2e6;
+        margin-bottom: 20px;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .stats-card.primary { border-left-color: #0d6efd; }
+    .stats-card.success { border-left-color: #198754; }
+    .stats-card.warning { border-left-color: #ffc107; }
+    .stats-card.danger { border-left-color: #dc3545; }
+    
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .stats-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+    
+    .action-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+        transition: transform 0.2s;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .product-item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .stock-badge {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+</style>
+{% endblock %}

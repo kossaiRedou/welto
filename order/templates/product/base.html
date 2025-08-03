@@ -1,0 +1,51 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}{% block page_title_text %}Gestion des Produits{% endblock %}{% endblock %}
+
+{% block page_header %}
+<div class="content-header">
+    <div class="text-center">
+        <h2>
+            {% block header_icon %}<i class="bi bi-box-seam me-2"></i>{% endblock %}
+            {% block header_title %}Gestion des Produits{% endblock %}
+        </h2>
+        {% block header_subtitle %}
+        <p class="text-muted">{% block subtitle %}{% endblock %}</p>
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content_wrapper %}
+<div class="content-body">
+    {% block content %}{% endblock %}
+
+    {% block actions %}
+    <div class="d-flex justify-content-between mt-4">
+        <a href="{% url 'product:management_home' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>
+            {% block back_text %}Retour{% endblock %}
+        </a>
+        {% block action_buttons %}{% endblock %}
+    </div>
+    {% endblock %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .required {
+        color: #dc3545;
+    }
+    
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,293 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}Tableau de Bord{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-graph-up me-2"></i>
+Tableau de Bord
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">Dashboard du {{ today_date }}</small>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'create-order' %}" class="btn btn-success btn-sm">
+    <i class="bi bi-plus-circle me-1"></i>
+    Nouvelle Vente
+</a>
+<a href="{% url 'product:add_product' %}" class="btn btn-primary btn-sm">
+    <i class="bi bi-box-seam me-1"></i>
+    Ajouter Produit
+</a>
+<a href="{% url 'order_list' %}" class="btn btn-info btn-sm">
+    <i class="bi bi-list-ul me-1"></i>
+    Historique
+</a>
+{% endblock %}
+
+{% block content_wrapper %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card primary">
+            <div class="stats-number">{{ today_sales|cut:" €"|default:"0" }}</div>
+            <div class="stats-label">GMD vendus aujourd'hui</div>
+            {% if sales_evolution_positive %}
+                <div class="stats-change positive">
+                    <i class="bi bi-arrow-up"></i> {{ sales_evolution }}
+                </div>
+            {% else %}
+                <div class="stats-change negative">
+                    <i class="bi bi-arrow-down"></i> {{ sales_evolution }}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card success">
+            <div class="stats-number">{{ today_orders_count }}</div>
+            <div class="stats-label">Ventes aujourd'hui</div>
+            <div class="stats-change">
+                <i class="bi bi-info-circle"></i> Panier moyen: {{ avg_order_today|cut:" €" }} GMD
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card info">
+            <div class="stats-number">{{ week_sales|cut:" €"|default:"0" }}</div>
+            <div class="stats-label">GMD cette semaine</div>
+            <div class="stats-change">
+                <i class="bi bi-calendar-week"></i> 7 derniers jours
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card warning">
+            <div class="stats-number">{{ week_orders_count }}</div>
+            <div class="stats-label">Ventes cette semaine</div>
+            <div class="stats-change">
+                <i class="bi bi-calendar-week"></i> 
+                {% if week_orders_count > 0 %}
+                    {{ week_orders_count }} commande{{ week_orders_count|pluralize }}
+                {% else %}
+                    Aucune vente cette semaine
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Dernières Ventes -->
+    <div class="col-lg-8 mb-4">
+        <div class="recent-sales">
+            <div class="recent-sales-header">
+                <i class="bi bi-clock-history me-2"></i>
+                Dernières Ventes
+            </div>
+            {% if recent_orders %}
+                {% for order in recent_orders %}
+                    <div class="sale-item">
+                        <div>
+                            <div class="sale-time">{{ order.date|date:"H:i"|default:"00:00" }}</div>
+                            <div class="sale-products">
+                                {% if order.title %}
+                                    {{ order.title }}
+                                {% else %}
+                                    Client: {{ order.id }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="sale-amount success">
+                            {{ order.final_value|floatformat:2 }} GMD
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="sale-item">
+                    <div class="text-muted">Aucune vente enregistrée aujourd'hui</div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Alertes Stock -->
+    <div class="col-lg-4">
+        {% if stock_alert %}
+            <div class="alert-section danger">
+                <h6>
+                    <i class="bi bi-exclamation-triangle alert-icon"></i>
+                    Produits en stock faible
+                </h6>
+                {% if low_stock_count > 0 %}
+                    <p class="mb-2">
+                        <strong>{{ low_stock_count }}</strong> produit{{ low_stock_count|pluralize }} avec moins de 5 unités
+                    </p>
+                {% endif %}
+                {% if out_of_stock_count > 0 %}
+                    <p class="mb-0">
+                        <strong>{{ out_of_stock_count }}</strong> produit{{ out_of_stock_count|pluralize }} en rupture
+                    </p>
+                {% endif %}
+                <a href="{% url 'product:product_list' %}" class="btn btn-sm btn-outline-danger mt-2">
+                    <i class="bi bi-box-seam me-1"></i>
+                    Gérer le stock
+                </a>
+            </div>
+        {% else %}
+            <div class="alert-section">
+                <h6>
+                    <i class="bi bi-check-circle alert-icon text-success"></i>
+                    Stock en bon état
+                </h6>
+                <p class="mb-0">Tous vos produits sont bien approvisionnés.</p>
+            </div>
+        {% endif %}
+
+        <!-- Argent en attente -->
+        {% if has_unpaid %}
+            <div class="alert-section warning mt-3">
+                <h6>
+                    <i class="bi bi-clock alert-icon"></i>
+                    Argent en attente
+                </h6>
+                <p class="mb-2">
+                    <strong>{{ unpaid_total }}</strong> en commandes non payées
+                </p>
+                <a href="{% url 'order_list' %}" class="btn btn-sm btn-outline-warning">
+                    <i class="bi bi-list-check me-1"></i>
+                    Voir les commandes
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-card {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+        border-left: 4px solid #dee2e6;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    .stats-card.primary {
+        border-left-color: #0d6efd;
+    }
+    
+    .stats-card.success {
+        border-left-color: #198754;
+    }
+    
+    .stats-card.warning {
+        border-left-color: #ffc107;
+    }
+    
+    .stats-card.info {
+        border-left-color: #0dcaf0;
+    }
+    
+    .stats-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .stats-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-bottom: 15px;
+    }
+    
+    .stats-change {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .stats-change.positive {
+        color: #198754;
+    }
+    
+    .stats-change.negative {
+        color: #dc3545;
+    }
+    
+    .recent-sales {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .recent-sales-header {
+        background: #f8f9fa;
+        padding: 20px 25px;
+        border-bottom: 1px solid #dee2e6;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .sale-item {
+        padding: 15px 25px;
+        border-bottom: 1px solid #f8f9fa;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .sale-item:last-child {
+        border-bottom: none;
+    }
+    
+    .sale-time {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .sale-products {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
+    
+    .sale-amount {
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    
+    .sale-amount.success {
+        color: #198754;
+    }
+    
+    .alert-section {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .alert-section.danger {
+        background: #f8d7da;
+        border-color: #f5c6cb;
+    }
+    
+    .alert-icon {
+        font-size: 1.5rem;
+        margin-right: 10px;
+    }
+</style>
+{% endblock %}

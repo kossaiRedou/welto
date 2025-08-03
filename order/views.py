@@ -18,7 +18,7 @@ import datetime
 
 @method_decorator(staff_member_required, name='dispatch')
 class HomepageView(ListView):
-    template_name = 'dashboard_with_sidebar.html'
+    template_name = 'main_dashboard.html'
     model = Order
     queryset = Order.objects.all()[:10]
 

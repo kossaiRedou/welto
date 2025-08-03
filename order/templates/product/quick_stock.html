@@ -1,0 +1,179 @@
+{% extends 'product/base.html' %}
+
+{% block title %}Ajuster Stock - {{ product.title }}{% endblock %}
+
+{% block header_icon %}<i class="bi bi-arrow-up-down text-warning me-2"></i>{% endblock %}
+{% block header_title %}Ajustement Rapide du Stock{% endblock %}
+{% block subtitle %}Modifiez le stock de "{{ product.title }}"{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Informations Produit
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>Nom :</strong> {{ product.title }}</p>
+                <p class="mb-2"><strong>Catégorie :</strong> {{ product.category.title|default:"Sans catégorie" }}</p>
+                <p class="mb-2"><strong>Prix :</strong> {{ product.final_value }} GMD</p>
+                <p class="mb-0">
+                    <strong>Stock Actuel :</strong> 
+                    <span class="badge bg-{% if product.qty > 5 %}success{% elif product.qty > 0 %}warning{% else %}danger{% endif %} fs-6">
+                        {{ product.qty }} unité{{ product.qty|pluralize }}
+                    </span>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="bi bi-gear me-2"></i>
+                    Actions Rapides
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-4">
+                        <button class="btn btn-outline-success btn-sm w-100" onclick="setAction('add', 10)">
+                            +10
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-success btn-sm w-100" onclick="setAction('add', 5)">
+                            +5
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-success btn-sm w-100" onclick="setAction('add', 1)">
+                            +1
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-danger btn-sm w-100" onclick="setAction('remove', 10)">
+                            -10
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-danger btn-sm w-100" onclick="setAction('remove', 5)">
+                            -5
+                        </button>
+                    </div>
+                    <div class="col-4">
+                        <button class="btn btn-outline-danger btn-sm w-100" onclick="setAction('remove', 1)">
+                            -1
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" id="stock_form">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="{{ form.action.id_for_label }}" class="form-label">
+                    Action à effectuer
+                </label>
+                {{ form.action }}
+                <div class="help-text">
+                    <strong>Ajouter :</strong> Augmente le stock<br>
+                    <strong>Retirer :</strong> Diminue le stock<br>
+                    <strong>Définir :</strong> Fixe le stock à une valeur précise
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="{{ form.quantity.id_for_label }}" class="form-label">
+                    Quantité
+                </label>
+                <div class="input-group">
+                    {{ form.quantity }}
+                    <span class="input-group-text">unités</span>
+                </div>
+                {% if form.quantity.errors %}
+                    <div class="text-danger mt-1">{{ form.quantity.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info mt-3" id="preview" style="display: none;">
+        <i class="bi bi-calculator me-2"></i>
+        <strong>Aperçu :</strong> <span id="preview_text"></span>
+    </div>
+</form>
+{% endblock %}
+
+{% block back_text %}Retour à la Liste{% endblock %}
+
+{% block action_buttons %}
+<button type="submit" form="stock_form" class="btn btn-warning">
+    <i class="bi bi-check-circle me-1"></i>
+    Appliquer les Modifications
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const currentStock = {{ product.qty }};
+
+function setAction(action, quantity) {
+    document.getElementById('id_action').value = action;
+    document.getElementById('id_quantity').value = quantity;
+    updatePreview();
+}
+
+function updatePreview() {
+    const action = document.getElementById('id_action').value;
+    const quantity = parseInt(document.getElementById('id_quantity').value) || 0;
+    const preview = document.getElementById('preview');
+    const previewText = document.getElementById('preview_text');
+    
+    if (quantity > 0) {
+        let newStock;
+        let actionText;
+        
+        switch(action) {
+            case 'add':
+                newStock = currentStock + quantity;
+                actionText = `Ajouter ${quantity} unités`;
+                break;
+            case 'remove':
+                newStock = Math.max(0, currentStock - quantity);
+                actionText = `Retirer ${quantity} unités`;
+                if (currentStock < quantity) {
+                    actionText += ` (limité à ${currentStock})`;
+                }
+                break;
+            case 'set':
+                newStock = quantity;
+                actionText = `Définir le stock à ${quantity} unités`;
+                break;
+        }
+        
+        previewText.innerHTML = `${actionText} → <strong>Nouveau stock : ${newStock} unités</strong>`;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+// Écouter les changements
+document.getElementById('id_action').addEventListener('change', updatePreview);
+document.getElementById('id_quantity').addEventListener('input', updatePreview);
+
+// Initialiser l'aperçu
+updatePreview();
+</script>
+{% endblock %}
