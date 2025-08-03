@@ -1,0 +1,26 @@
+# Fichiers d'environnement
+.env
+
+# Cache Python
+__pycache__/
+*.py[cod]
+
+# Ignorer les fichiers compilés Python dans tous les dossiers (récursivement)
+**/__pycache__/
+**/*.py[cod]
+
+# Migrations compilées
+**/migrations/__pycache__/
+
+# Ignorer les fichiers de configuration personnalisés
+*.env
+
+# Fichiers spécifiques à Django
+*.sqlite3
+
+# Ignorer les templates de test ou dev
+order/templates/dashboard_with_sidebar.html
+order/templates/simple_dashboard.html
+
+# Fichier requirements si tu ne veux pas le suivre (optionnel)
+# requirements.txt

@@ -6,7 +6,7 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.template.loader import render_to_string
 from django.http import JsonResponse
-from django.db.models import Sum
+from django.db.models import Sum, Count, Avg
 from django_tables2 import RequestConfig
 from .models import Order, OrderItem, CURRENCY
 from .forms import OrderCreateForm, OrderEditForm
@@ -18,25 +18,111 @@ import datetime
 
 @method_decorator(staff_member_required, name='dispatch')
 class HomepageView(ListView):
-    template_name = 'index.html'
+    template_name = 'dashboard_with_sidebar.html'
     model = Order
     queryset = Order.objects.all()[:10]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        orders = Order.objects.all()
-        total_sales = orders.aggregate(Sum('final_value'))['final_value__sum'] if orders.exists() else 0
-        paid_value = orders.filter(is_paid=True).aggregate(Sum('final_value'))['final_value__sum']\
-            if orders.filter(is_paid=True).exists() else 0
-        remaining = total_sales - paid_value
-        diviner = total_sales if total_sales > 0 else 1
-        paid_percent, remain_percent = round((paid_value/diviner)*100, 1), round((remaining/diviner)*100, 1)
-        total_sales = f'{total_sales} {CURRENCY}'
-        paid_value = f'{paid_value} {CURRENCY}'
-        remaining = f'{remaining} {CURRENCY}'
-        orders = OrderTable(orders)
-        RequestConfig(self.request).configure(orders)
-        context.update(locals())
+        
+        # Données de base
+        today = datetime.date.today()
+        yesterday = today - datetime.timedelta(days=1)
+        this_week_start = today - datetime.timedelta(days=today.weekday())
+        this_month_start = today.replace(day=1)
+        
+        # Toutes les commandes
+        all_orders = Order.objects.all()
+        today_orders = all_orders.filter(date=today)
+        yesterday_orders = all_orders.filter(date=yesterday)
+        week_orders = all_orders.filter(date__gte=this_week_start)
+        month_orders = all_orders.filter(date__gte=this_month_start)
+        
+        # === STATISTIQUES SIMPLES ET PARLANTES ===
+        
+        # Ventes d'aujourd'hui
+        today_sales = today_orders.aggregate(Sum('final_value'))['final_value__sum'] or 0
+        today_orders_count = today_orders.count()
+        
+        # Ventes d'hier (pour comparaison)
+        yesterday_sales = yesterday_orders.aggregate(Sum('final_value'))['final_value__sum'] or 0
+        
+        # Évolution par rapport à hier
+        if yesterday_sales > 0:
+            sales_evolution = ((today_sales - yesterday_sales) / yesterday_sales) * 100
+        else:
+            sales_evolution = 100 if today_sales > 0 else 0
+            
+        # Ventes de la semaine
+        week_sales = week_orders.aggregate(Sum('final_value'))['final_value__sum'] or 0
+        week_orders_count = week_orders.count()
+        
+        # Ventes du mois
+        month_sales = month_orders.aggregate(Sum('final_value'))['final_value__sum'] or 0
+        month_orders_count = month_orders.count()
+        
+        # Panier moyen aujourd'hui
+        avg_order_today = today_sales / today_orders_count if today_orders_count > 0 else 0
+        
+        # Argent en attente (non payé)
+        unpaid_total = all_orders.filter(is_paid=False).aggregate(Sum('final_value'))['final_value__sum'] or 0
+        
+        # Produits les plus vendus (top 5)
+        top_products = OrderItem.objects.values('product__title')\
+            .annotate(total_qty=Sum('qty'), total_revenue=Sum('total_price'))\
+            .order_by('-total_qty')[:5]
+            
+        # Stock faible (moins de 5 unités)
+        low_stock = Product.objects.filter(active=True, qty__lt=5).count()
+        
+        # Produits en rupture
+        out_of_stock = Product.objects.filter(active=True, qty=0).count()
+        
+        # Total des produits en stock
+        total_products_in_stock = Product.objects.filter(active=True, qty__gt=0).aggregate(Sum('qty'))['qty__sum'] or 0
+        
+        # Commandes récentes (5 dernières)
+        recent_orders = Order.objects.all()[:5]
+        
+        # === FORMATAGE POUR L'AFFICHAGE ===
+        context.update({
+            # Ventes du jour
+            'today_sales': f'{today_sales:,.0f} {CURRENCY}',
+            'today_orders_count': today_orders_count,
+            'avg_order_today': f'{avg_order_today:,.0f} {CURRENCY}',
+            
+            # Comparaison avec hier
+            'yesterday_sales': f'{yesterday_sales:,.0f} {CURRENCY}',
+            'sales_evolution': f'{sales_evolution:+.1f}%',
+            'sales_evolution_positive': sales_evolution >= 0,
+            
+            # Périodes plus longues
+            'week_sales': f'{week_sales:,.0f} {CURRENCY}',
+            'week_orders_count': week_orders_count,
+            'month_sales': f'{month_sales:,.0f} {CURRENCY}',
+            'month_orders_count': month_orders_count,
+            
+            # Argent en attente
+            'unpaid_total': f'{unpaid_total:,.0f} {CURRENCY}',
+            'has_unpaid': unpaid_total > 0,
+            
+            # Stock
+            'low_stock_count': low_stock,
+            'out_of_stock_count': out_of_stock,
+            'total_products_in_stock': total_products_in_stock,
+            'stock_alert': low_stock > 0 or out_of_stock > 0,
+            
+            # Produits populaires
+            'top_products': top_products,
+            
+            # Commandes récentes
+            'recent_orders': recent_orders,
+            
+            # Dates pour affichage
+            'today_date': today.strftime('%d/%m/%Y'),
+            'yesterday_date': yesterday.strftime('%d/%m/%Y'),
+        })
+        
         return context
 
 

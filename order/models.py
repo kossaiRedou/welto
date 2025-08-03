@@ -32,10 +32,17 @@ class Order(models.Model):
         ordering = ['-date']
 
     def save(self, *args, **kwargs):
+        # Sauvegarder d'abord l'instance pour qu'elle ait une clé primaire
+        super().save(*args, **kwargs)
+        
+        # Maintenant on peut accéder aux relations
         order_items = self.order_items.all()
         self.value = order_items.aggregate(Sum('total_price'))['total_price__sum'] if order_items.exists() else 0.00
         self.final_value = Decimal(self.value) - Decimal(self.discount)
-        super().save(*args, **kwargs)
+        
+        # Sauvegarder à nouveau avec les valeurs calculées
+        if order_items.exists():
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title if self.title else 'New Order'
