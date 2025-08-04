@@ -1,0 +1,211 @@
+{% load static %}
+<div class="payments-section">
+    <h5 class="card-title d-flex align-items-center">
+        <i class="bi bi-credit-card me-2"></i>
+        Paiements Reçus
+        <span class="badge bg-primary ms-2">{{ payments.count }}</span>
+    </h5>
+    
+    <!-- Résumé des paiements -->
+    <div class="payment-summary mb-3">
+        <div class="row text-center">
+            <div class="col-md-4">
+                <div class="payment-stat">
+                    <div class="stat-value text-success">{{ order.tag_total_payments }}</div>
+                    <div class="stat-label">Payé</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="payment-stat">
+                    <div class="stat-value text-warning">{{ order.tag_remaining_amount }}</div>
+                    <div class="stat-label">Restant</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="payment-stat">
+                    <div class="stat-value">{{ order.payment_percentage|floatformat:1 }}%</div>
+                    <div class="stat-label">Progression</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Barre de progression -->
+        <div class="progress mt-2">
+            <div class="progress-bar {% if order.is_fully_paid %}bg-success{% else %}bg-info{% endif %}" 
+                 role="progressbar" 
+                 style="width: {{ order.payment_percentage }}%"
+                 aria-valuenow="{{ order.payment_percentage }}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+            </div>
+        </div>
+    </div>
+
+    <!-- Formulaire d'ajout de paiement -->
+    {% if not order.is_fully_paid %}
+    <div class="add-payment-form mb-3">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-plus-circle me-1"></i>
+                Ajouter un Paiement
+            </div>
+            <div class="card-body">
+                <form id="payment-form" method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Montant</label>
+                            <div class="input-group">
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="payment-amount" 
+                                       name="amount" 
+                                       step="0.01" 
+                                       min="0.01" 
+                                       max="{{ order.remaining_amount }}"
+                                       placeholder="0.00" 
+                                       required>
+                                <span class="input-group-text">{{ order.tag_remaining_amount|slice:":-4" }}</span>
+                            </div>
+                            <small class="text-muted">Max: {{ order.tag_remaining_amount }}</small>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Méthode</label>
+                            <select class="form-select" id="payment-method" name="method">
+                                <option value="cash">Espèces</option>
+                                <option value="mobile">Mobile Money</option>
+                                <option value="bank">Virement bancaire</option>
+                                <option value="credit">Crédit</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Note (optionnel)</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="payment-note" 
+                                   name="note" 
+                                   placeholder="Référence, détails...">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-plus-lg me-1"></i>
+                                Ajouter
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Liste des paiements -->
+    {% if payments %}
+    <div class="payments-list">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Montant</th>
+                        <th>Méthode</th>
+                        <th>Note</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.date|date:"d/m/Y" }}</td>
+                        <td>
+                            <span class="badge bg-success">{{ payment.tag_amount }}</span>
+                        </td>
+                        <td>
+                            <i class="bi bi-{% if payment.method == 'cash' %}cash{% elif payment.method == 'mobile' %}phone{% elif payment.method == 'bank' %}bank{% else %}credit-card{% endif %} me-1"></i>
+                            {{ payment.get_method_display }}
+                        </td>
+                        <td>
+                            {% if payment.note %}
+                                <small class="text-muted">{{ payment.note }}</small>
+                            {% else %}
+                                <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger delete-payment-btn" 
+                                    data-payment-id="{{ payment.id }}"
+                                    title="Supprimer ce paiement">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-3">
+        <i class="bi bi-credit-card-2-front fs-1"></i>
+        <p class="mt-2">Aucun paiement enregistré</p>
+    </div>
+    {% endif %}
+
+    <!-- Statut de la commande -->
+    <div class="payment-status mt-3">
+        {% if order.is_fully_paid %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i>
+                <strong>Commande entièrement payée !</strong>
+            </div>
+        {% else %}
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Paiement partiel :</strong> Il reste {{ order.tag_remaining_amount }} à encaisser.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.payment-stat {
+    padding: 10px;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    margin-bottom: 10px;
+}
+
+.stat-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+}
+
+.progress {
+    height: 8px;
+}
+
+.payments-list .table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.add-payment-form .card-header {
+    font-weight: 600;
+}
+
+.payment-summary .row > div {
+    border-right: 1px solid #dee2e6;
+}
+
+.payment-summary .row > div:last-child {
+    border-right: none;
+}
+</style>

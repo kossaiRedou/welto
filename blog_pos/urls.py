@@ -6,7 +6,7 @@ from django.conf.urls.static import static
 from order.views import (HomepageView, OrderUpdateView, CreateOrderView, delete_order,
                          OrderListView, done_order_view, auto_create_order_view,
                          ajax_add_product, ajax_modify_order_item, ajax_search_products, ajax_calculate_results_view,
-                         order_action_view, ajax_calculate_category_view
+                         order_action_view, ajax_calculate_category_view, ajax_add_payment, ajax_delete_payment
                          )
 
 urlpatterns = [
@@ -31,6 +31,10 @@ urlpatterns = [
     path('ajax/modify-product/<int:pk>/<slug:action>', ajax_modify_order_item, name='ajax_modify'),
     path('ajax/calculate-results/', ajax_calculate_results_view, name='ajax_calculate_result'),
     path('ajax/calculate-category-results/', ajax_calculate_category_view, name='ajax_category_result'),
+    
+    # Paiements AJAX
+    path('ajax/add-payment/<int:pk>/', ajax_add_payment, name='ajax_add_payment'),
+    path('ajax/delete-payment/<int:pk>/<int:payment_id>/', ajax_delete_payment, name='ajax_delete_payment'),
 
 ]
 

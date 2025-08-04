@@ -8,7 +8,8 @@ from django.template.loader import render_to_string
 from django.http import JsonResponse
 from django.db.models import Sum, Count, Avg
 from django_tables2 import RequestConfig
-from .models import Order, OrderItem, CURRENCY
+from .models import Order, OrderItem, Payment, CURRENCY
+from decimal import Decimal
 from .forms import OrderCreateForm, OrderEditForm
 from product.models import Product, Category
 from .tables import ProductTable, OrderItemTable, OrderTable
@@ -329,3 +330,95 @@ def ajax_calculate_category_view(request):
                                       context=locals()
                                       )
     return JsonResponse(data)
+
+
+# === VUES POUR GESTION DES PAIEMENTS ===
+
+@staff_member_required
+def ajax_add_payment(request, pk):
+    """Ajouter un paiement à une commande via AJAX"""
+    order = get_object_or_404(Order, id=pk)
+    
+    if request.method == 'POST':
+        try:
+            amount = Decimal(request.POST.get('amount', '0'))
+            method = request.POST.get('method', 'cash')
+            note = request.POST.get('note', '')
+            
+            if amount <= 0:
+                return JsonResponse({'success': False, 'error': 'Le montant doit être supérieur à 0'})
+            
+            # Vérifier que le paiement ne dépasse pas le montant restant
+            remaining = order.remaining_amount()
+            if amount > remaining:
+                return JsonResponse({
+                    'success': False, 
+                    'error': f'Le paiement ({amount} {CURRENCY}) dépasse le montant restant ({remaining} {CURRENCY})'
+                })
+            
+            # Créer le paiement
+            payment = Payment.objects.create(
+                order=order,
+                amount=amount,
+                method=method,
+                note=note
+            )
+            
+            # Mettre à jour le statut is_paid de la commande
+            order.is_paid = order.is_fully_paid()
+            order.save()
+            
+            # Retourner les données mises à jour
+            payments_html = render_to_string('include/payments_container.html', {
+                'order': order,
+                'payments': order.payments.all()
+            })
+            
+            return JsonResponse({
+                'success': True,
+                'payments_html': payments_html,
+                'total_payments': str(order.total_payments()),
+                'remaining_amount': str(order.remaining_amount()),
+                'payment_percentage': round(order.payment_percentage(), 1),
+                'is_fully_paid': order.is_fully_paid()
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
+
+
+@staff_member_required
+def ajax_delete_payment(request, pk, payment_id):
+    """Supprimer un paiement via AJAX"""
+    order = get_object_or_404(Order, id=pk)
+    payment = get_object_or_404(Payment, id=payment_id, order=order)
+    
+    if request.method == 'POST':
+        try:
+            payment.delete()
+            
+            # Mettre à jour le statut is_paid de la commande
+            order.is_paid = order.is_fully_paid()
+            order.save()
+            
+            # Retourner les données mises à jour
+            payments_html = render_to_string('include/payments_container.html', {
+                'order': order,
+                'payments': order.payments.all()
+            })
+            
+            return JsonResponse({
+                'success': True,
+                'payments_html': payments_html,
+                'total_payments': str(order.total_payments()),
+                'remaining_amount': str(order.remaining_amount()),
+                'payment_percentage': round(order.payment_percentage(), 1),
+                'is_fully_paid': order.is_fully_paid()
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})

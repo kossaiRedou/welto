@@ -61,6 +61,30 @@ class Order(models.Model):
 
     def tag_value(self):
         return f'{self.value} {CURRENCY}'
+    
+    def total_payments(self):
+        """Calcule le total des paiements reçus"""
+        return self.payments.aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    
+    def remaining_amount(self):
+        """Calcule le montant restant à payer"""
+        return max(Decimal('0.00'), self.final_value - self.total_payments())
+    
+    def payment_percentage(self):
+        """Calcule le pourcentage payé"""
+        if self.final_value <= 0:
+            return 100
+        return min(100, (self.total_payments() / self.final_value) * 100)
+    
+    def is_fully_paid(self):
+        """Vérifie si la commande est entièrement payée"""
+        return self.remaining_amount() <= Decimal('0.00')
+    
+    def tag_total_payments(self):
+        return f'{self.total_payments()} {CURRENCY}'
+    
+    def tag_remaining_amount(self):
+        return f'{self.remaining_amount()} {CURRENCY}'
 
     @staticmethod
     def filter_data(request, queryset):
@@ -113,10 +137,55 @@ class OrderItem(models.Model):
         return f'{self.price} {CURRENCY}'
 
 
+class Payment(models.Model):
+    """Modèle pour gérer les paiements échelonnés d'une commande"""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payments')
+    amount = models.DecimalField(max_digits=20, decimal_places=2, help_text="Montant du paiement")
+    date = models.DateField(default=datetime.date.today, help_text="Date du paiement")
+    method = models.CharField(max_length=50, choices=[
+        ('cash', 'Espèces'),
+        ('mobile', 'Mobile Money'),
+        ('bank', 'Virement bancaire'),
+        ('credit', 'Crédit'),
+        ('other', 'Autre')
+    ], default='cash', help_text="Méthode de paiement")
+    note = models.CharField(max_length=200, blank=True, help_text="Note sur le paiement")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f'{self.amount} {CURRENCY} - {self.get_method_display()}'
+
+    def tag_amount(self):
+        return f'{self.amount} {CURRENCY}'
+
+
 @receiver(post_delete, sender=OrderItem)
 def delete_order_item(sender, instance, **kwargs):
     product = instance.product
     product.qty += instance.qty
     product.save()
     instance.order.save()
+
+
+# Signal pour mettre à jour automatiquement is_paid quand un paiement est ajouté/supprimé
+from django.db.models.signals import post_save, post_delete
+
+@receiver(post_save, sender=Payment)
+def update_order_payment_status_on_save(sender, instance, **kwargs):
+    """Met à jour le statut is_paid de la commande quand un paiement est ajouté/modifié"""
+    order = instance.order
+    order.is_paid = order.is_fully_paid()
+    # Utiliser update pour éviter de déclencher le signal save de Order
+    Order.objects.filter(id=order.id).update(is_paid=order.is_paid)
+
+@receiver(post_delete, sender=Payment)
+def update_order_payment_status_on_delete(sender, instance, **kwargs):
+    """Met à jour le statut is_paid de la commande quand un paiement est supprimé"""
+    order = instance.order
+    order.is_paid = order.is_fully_paid()
+    # Utiliser update pour éviter de déclencher le signal save de Order
+    Order.objects.filter(id=order.id).update(is_paid=order.is_paid)
 
