@@ -24,9 +24,16 @@ Modifier la commande
                     </div>
                 </div>
 
-                <div class="col-12 d-flex no-block align-items-center">
-                    <h4 class="page-title">{{ instance.date }} - n° {{ instance }}</h4>
-                </div>
+                                 <div class="col-12 d-flex no-block align-items-center">
+                     <h4 class="page-title">
+                         {{ instance.date }} - 
+                         {% if instance.is_auto_generated_number %}
+                             {{ instance.order_number_display }}
+                         {% else %}
+                             {{ instance.title|default:"Commande sans titre" }}
+                         {% endif %}
+                     </h4>
+                 </div>
             </div>
         </div>
         <div class="container-fluid">

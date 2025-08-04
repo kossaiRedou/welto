@@ -6,13 +6,37 @@ from .models import OrderItem, Order
 
 class OrderTable(tables.Table):
     tag_final_value = tables.Column(orderable=False, verbose_name='Value')
+    payment_status = tables.TemplateColumn(
+        '''
+        {% if record.is_paid %}
+            <span class="badge bg-success">
+                <i class="bi bi-check-circle me-1"></i>
+                Payé
+            </span>
+        {% else %}
+            <span class="badge bg-danger">
+                <i class="bi bi-x-circle me-1"></i>
+                Non payé
+            </span>
+        {% endif %}
+        ''',
+        orderable=True,
+        verbose_name='Paiement'
+    )
     action = tables.TemplateColumn(
-        '<a href="{{ record.get_edit_url }}" class="btn btn-info"><i class="fa fa-edit"></i></a>', orderable=False)
+        '''
+        <a href="{{ record.get_edit_url }}" class="btn btn-outline-primary btn-sm" title="Modifier la commande">
+            <i class="bi bi-pencil-square"></i>
+        </a>
+        ''', 
+        orderable=False, 
+        verbose_name='Actions'
+    )
 
     class Meta:
         model = Order
         template_name = 'django_tables2/bootstrap.html'
-        fields = ['date', 'title', 'tag_final_value']
+        fields = ['date', 'title', 'payment_status', 'tag_final_value', 'action']
 
 
 class ProductTable(tables.Table):

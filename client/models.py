@@ -4,7 +4,7 @@ import datetime
 
 class Client(models.Model):
     """Modèle simple pour gérer les clients"""
-    phone = models.CharField(max_length=20, unique=True, help_text="Numéro de téléphone (unique)")
+    phone = models.CharField(max_length=7, unique=True, help_text="Numéro de téléphone gambien (7 chiffres, unique)")
     name = models.CharField(max_length=150, help_text="Nom complet du client")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

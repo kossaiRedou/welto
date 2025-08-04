@@ -1,0 +1,208 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}Supprimer {{ object.name }}{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-person-x me-2"></i>
+Supprimer Client
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'client:client_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>
+    Retour à la Liste
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Confirmation de Suppression
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-info-circle me-2"></i>Attention</h6>
+                    <p class="mb-0">
+                        Vous êtes sur le point de supprimer définitivement ce client. 
+                        Cette action est <strong>irréversible</strong>.
+                    </p>
+                </div>
+                
+                <!-- Informations du client à supprimer -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="client-info-card">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar-circle me-3">
+                                    {{ object.name|first|upper }}
+                                </div>
+                                <div>
+                                    <h5 class="mb-0">{{ object.name }}</h5>
+                                    <p class="text-muted mb-0">
+                                        <i class="bi bi-telephone me-1"></i>
+                                        {{ object.phone }}
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <strong class="text-primary">{{ object.total_orders }}</strong>
+                                    <br><small class="text-muted">Commande{{ object.total_orders|pluralize }}</small>
+                                </div>
+                                <div class="col-6">
+                                    <strong class="text-success">{{ object.total_spent|floatformat:0 }} GMD</strong>
+                                    <br><small class="text-muted">Total Dépensé</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="consequences-info">
+                            <h6><i class="bi bi-list-check me-2"></i>Conséquences de la suppression :</h6>
+                            <ul class="list-unstyled">
+                                <li class="mb-2">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Les commandes du client seront <strong>préservées</strong>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    Le client ne pourra plus être <strong>sélectionné</strong> pour de nouvelles commandes
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-x-circle text-danger me-2"></i>
+                                    Toutes les informations client seront <strong>perdues</strong>
+                                </li>
+                                <li class="mb-2">
+                                    <i class="bi bi-info-circle text-info me-2"></i>
+                                    Cette action est <strong>définitive</strong>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Alternative à la suppression -->
+                {% if object.is_active %}
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-lightbulb me-2"></i>Alternative recommandée</h6>
+                    <p class="mb-2">
+                        Au lieu de supprimer ce client, vous pouvez le <strong>désactiver</strong>. 
+                        Cela préservera toutes les données tout en le retirant des recherches.
+                    </p>
+                    <a href="{% url 'client:edit_client' object.pk %}" class="btn btn-info btn-sm">
+                        <i class="bi bi-toggle-off me-1"></i>
+                        Désactiver le Client
+                    </a>
+                </div>
+                {% endif %}
+                
+                <!-- Formulaire de confirmation -->
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="confirm-delete" required>
+                        <label class="form-check-label" for="confirm-delete">
+                            <strong>Je comprends que cette action est irréversible</strong>
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <a href="{% url 'client:client_list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>
+                                Annuler
+                            </a>
+                            <a href="{% url 'client:client_detail' object.pk %}" class="btn btn-outline-info ms-2">
+                                <i class="bi bi-eye me-1"></i>
+                                Voir Détails
+                            </a>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-danger" id="delete-btn" disabled>
+                            <i class="bi bi-trash me-1"></i>
+                            Supprimer Définitivement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.avatar-circle {
+    width: 50px;
+    height: 50px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.client-info-card {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+}
+
+.consequences-info {
+    padding: 1rem;
+}
+
+.card.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.list-unstyled li {
+    padding: 0.25rem 0;
+}
+
+.alert {
+    border-radius: 0.5rem;
+}
+
+.btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Activer/désactiver le bouton de suppression selon la case à cocher
+    $('#confirm-delete').change(function() {
+        const deleteBtn = $('#delete-btn');
+        if ($(this).is(':checked')) {
+            deleteBtn.prop('disabled', false);
+        } else {
+            deleteBtn.prop('disabled', true);
+        }
+    });
+    
+    // Confirmation finale avant suppression
+    $('form').submit(function(e) {
+        if (!confirm('DERNIÈRE CONFIRMATION : Êtes-vous absolument sûr de vouloir supprimer ce client ?')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

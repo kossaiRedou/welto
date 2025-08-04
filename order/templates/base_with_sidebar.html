@@ -246,7 +246,9 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="logo">
-            <img src="{% static 'assets/images/logo_bg.png' %}" alt="Logo" class="logo-img">
+            <a href="{% url 'homepage' %}">
+                <img src="{% static 'assets/images/logo_bg.png' %}" alt="Logo" class="logo-img">
+            </a>
             <div class="brand-info">
                 <h3 class="brand-name">welto</h3>
                 <!--div class="brand-subtitle">Gestion des Ventes</div-->
@@ -265,6 +267,10 @@
             <a href="{% url 'product:management_home' %}" class="nav-link {% if 'product' in request.resolver_match.namespace|default:'' %}active{% endif %}">
                 <i class="bi bi-box-seam"></i>
                 <span>Produits</span>
+            </a>
+            <a href="{% url 'client:client_list' %}" class="nav-link {% if 'client' in request.resolver_match.namespace|default:'' %}active{% endif %}">
+                <i class="bi bi-people"></i>
+                <span>Clients</span>
             </a>
             <a href="{% url 'order_list' %}" class="nav-link {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
                 <i class="bi bi-clock-history"></i>

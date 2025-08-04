@@ -96,6 +96,9 @@ Tableau de Bord
                             <div class="sale-time">{{ order.date|date:"d/m" }}</div>
                             <div class="sale-products">
                                 {{ order.client_display }}
+                                {% if order.is_auto_generated_number %}
+                                    <br><small class="text-muted">{{ order.order_number_display }}</small>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="sale-amount success">

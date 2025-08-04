@@ -13,6 +13,14 @@ class BaseForm(forms.Form):
 
 class OrderCreateForm(BaseForm, forms.ModelForm):
     date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    title = forms.CharField(
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Laissez vide pour génération automatique'
+        }),
+        help_text='Un numéro de commande sera généré automatiquement si ce champ est laissé vide'
+    )
     # Le champ client sera géré via AJAX, pas dans le formulaire Django
     
     class Meta:
@@ -21,6 +29,14 @@ class OrderCreateForm(BaseForm, forms.ModelForm):
 
 
 class OrderEditForm(BaseForm, forms.ModelForm):
+    title = forms.CharField(
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Numéro de commande'
+        }),
+        help_text='Numéro de commande (généré automatiquement si vide lors de la création)'
+    )
 
     class Meta:
         model = Order

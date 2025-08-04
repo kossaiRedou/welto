@@ -115,10 +115,15 @@ Nouvelle vente
                                                             <label class="form-label">Nom complet</label>
                                                             <input type="text" class="form-control" id="new-client-name" placeholder="Nom du client">
                                                         </div>
-                                                        <div class="col-md-4">
-                                                            <label class="form-label">Téléphone</label>
-                                                            <input type="text" class="form-control" id="new-client-phone" placeholder="Numéro de téléphone">
-                                                        </div>
+                                                                                                <div class="col-md-4">
+                                            <label class="form-label">Téléphone</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="new-client-phone" 
+                                                   placeholder="Ex: 7123456 (7 chiffres)"
+                                                   maxlength="7"
+                                                   pattern="[0-9]{7}">
+                                        </div>
                                                         <div class="col-md-2 d-flex align-items-end">
                                                             <button type="button" class="btn btn-success w-100" id="save-new-client">
                                                                 <i class="bi bi-plus me-1"></i>
@@ -138,7 +143,26 @@ Nouvelle vente
                                         <i class="bi bi-cart me-2"></i>
                                         Détails de la commande
                                     </h5>
-                                    {{ form }}
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            {{ form.date.label_tag }}
+                                            {{ form.date }}
+                                            {% if form.date.help_text %}
+                                                <small class="form-text text-muted">{{ form.date.help_text }}</small>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            {{ form.title.label_tag }}
+                                            {{ form.title }}
+                                            {% if form.title.help_text %}
+                                                <small class="form-text text-muted">
+                                                    <i class="bi bi-info-circle me-1"></i>
+                                                    {{ form.title.help_text }}
+                                                </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                     
                                     <!-- Champ caché pour l'ID client -->
                                     <input type="hidden" id="client_id" name="client_id" value="">
@@ -306,12 +330,27 @@ $(document).ready(function() {
         }
     });
     
+    // Validation temps réel du téléphone dans création rapide
+    $('#new-client-phone').on('input', function() {
+        const phone = $(this).val().replace(/\D/g, ''); // Garder seulement les chiffres
+        $(this).val(phone); // Mettre à jour le champ
+        
+        if (phone.length > 7) {
+            $(this).val(phone.substring(0, 7)); // Limiter à 7 chiffres
+        }
+    });
+    
     $('#save-new-client').click(function() {
         const name = $('#new-client-name').val().trim();
         const phone = $('#new-client-phone').val().trim();
         
         if (!name || !phone) {
             alert('Veuillez remplir le nom et le téléphone');
+            return;
+        }
+        
+        if (phone.length !== 7 || !/^\d{7}$/.test(phone)) {
+            alert('Le numéro de téléphone doit contenir exactement 7 chiffres (format Gambie)');
             return;
         }
         

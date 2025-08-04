@@ -33,7 +33,50 @@ class Order(models.Model):
     class Meta:
         ordering = ['-date']
 
+    def generate_order_number(self):
+        """Génère un numéro de commande automatique basé sur la date et l'heure"""
+        # Format: CMD-YYYYMMDD-HHMM-XXX
+        # Exemple: CMD-20241215-1430-001
+        
+        from django.utils import timezone
+        now = timezone.now()
+        
+        # Utiliser la date de la commande pour la partie date, et l'heure actuelle pour l'heure
+        date_part = self.date.strftime('%Y%m%d')
+        time_part = now.strftime('%H%M')
+        
+        # Compter les commandes avec des numéros générés aujourd'hui pour éviter les doublons
+        today_orders_count = Order.objects.filter(
+            date=self.date,
+            title__startswith=f"CMD-{date_part}-"
+        ).count()
+        
+        # Générer un numéro unique en incrémentant jusqu'à trouver un disponible
+        sequence = today_orders_count + 1
+        while True:
+            order_number = f"CMD-{date_part}-{time_part}-{sequence:03d}"
+            
+            # Vérifier si ce numéro existe déjà (exclure la commande actuelle si modification)
+            existing = Order.objects.filter(title=order_number)
+            if self.pk:  # Si c'est une modification, exclure la commande actuelle
+                existing = existing.exclude(pk=self.pk)
+            
+            if not existing.exists():
+                return order_number
+            
+            sequence += 1
+            
+            # Sécurité : éviter une boucle infinie
+            if sequence > 999:
+                # Fallback avec timestamp plus précis
+                microsecond_part = now.strftime('%f')[:3]  # 3 premiers chiffres des microsecondes
+                return f"CMD-{date_part}-{time_part}-{microsecond_part}"
+    
     def save(self, *args, **kwargs):
+        # Générer automatiquement le numéro de commande si title est vide
+        if not self.title or self.title.strip() == '':
+            self.title = self.generate_order_number()
+        
         # Sauvegarder d'abord l'instance pour qu'elle ait une clé primaire
         super().save(*args, **kwargs)
         
@@ -93,6 +136,29 @@ class Order(models.Model):
         if self.client:
             return f"{self.client.name} ({self.client.phone})"
         return self.title if self.title else f"Commande #{self.id}"
+    
+    def order_number_display(self):
+        """Affichage formaté du numéro de commande"""
+        if self.title and self.title.startswith('CMD-'):
+            # CMD-20241215-1430-001 -> CMD-2024/12/15-14:30-001
+            parts = self.title.split('-')
+            if len(parts) == 4:
+                date_part = parts[1]  # 20241215
+                time_part = parts[2]  # 1430
+                seq_part = parts[3]   # 001
+                
+                # Formater la date : 20241215 -> 2024/12/15
+                formatted_date = f"{date_part[:4]}/{date_part[4:6]}/{date_part[6:8]}"
+                # Formater l'heure : 1430 -> 14:30
+                formatted_time = f"{time_part[:2]}:{time_part[2:4]}"
+                
+                return f"CMD-{formatted_date}-{formatted_time}-{seq_part}"
+        
+        return self.title
+    
+    def is_auto_generated_number(self):
+        """Vérifie si le titre est un numéro de commande généré automatiquement"""
+        return self.title and self.title.startswith('CMD-') and len(self.title.split('-')) == 4
 
     @staticmethod
     def filter_data(request, queryset):
