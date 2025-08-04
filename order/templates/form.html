@@ -1,104 +1,75 @@
 {% extends 'base_with_sidebar.html' %}
 
-{% block title %}Nouvelle Commande{% endblock %}
 
-{% block page_title %}
-<i class="bi bi-plus-circle me-2"></i>
-Nouvelle Commande
-{% endblock %}
-
-{% block page_subtitle %}
-<small class="text-muted">Créer une nouvelle vente</small>
-{% endblock %}
-
-{% block header_actions %}
-<a href="{% url 'order_list' %}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-list me-1"></i>
-    Voir l'Historique
-</a>
-{% endblock %}
-
-{% block content_wrapper %}
-<div class="card">
-    <div class="card-header">
-        <h6 class="mb-0">
-            <i class="bi bi-file-earmark-plus me-2"></i>
-            Informations de la Commande
-        </h6>
-    </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            
-            <div class="row">
-                {% for field in form %}
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ field.id_for_label }}" class="form-label">
-                            {{ field.label }}
-                            {% if field.field.required %}
-                                <span class="text-danger">*</span>
-                            {% endif %}
-                        </label>
-                        
-                        {% if field.name == 'date' %}
-                            <div class="input-group">
-                                <span class="input-group-text">
-                                    <i class="bi bi-calendar"></i>
-                                </span>
-                                {{ field }}
-                            </div>
-                        {% else %}
-                            {{ field }}
-                        {% endif %}
-                        
-                        {% if field.help_text %}
-                            <div class="form-text">{{ field.help_text }}</div>
-                        {% endif %}
-                        
-                        {% if field.errors %}
-                            <div class="text-danger mt-1">
-                                {% for error in field.errors %}
-                                    <small>{{ error }}</small>
-                                {% endfor %}
-                            </div>
-                        {% endif %}
+{% block content %}
+    <!-- ============================================================== -->
+        <!-- Page wrapper  -->
+        <!-- ============================================================== -->
+        <div class="page-wrapper">
+            <!-- ============================================================== -->
+            <!-- Bread crumb and right sidebar toggle -->
+            <!-- ============================================================== -->
+            <div class="page-breadcrumb">
+                <div class="row">
+                    <div class="col-12 d-flex no-block align-items-center">
+                        <h4 class="page-title">{{ form_title }}</h4>
+                        <div class="ml-auto text-right">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb">
+                                    <li class="breadcrumb-item"><a href="{% url 'homepage' %}">Home</a></li>
+                                    <li class="breadcrumb-item active" aria-current="page">{{ form_title }}</li>
+                                </ol>
+                            </nav>
+                        </div>
                     </div>
-                {% endfor %}
+                </div>
             </div>
-            
-            <div class="d-flex justify-content-between mt-4">
-                <a href="{% url 'homepage' %}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left me-1"></i>
-                    Annuler
-                </a>
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-check-circle me-1"></i>
-                    Créer la Commande
-                </button>
+            <!-- ============================================================== -->
+            <!-- End Bread crumb and right sidebar toggle -->
+            <!-- ============================================================== -->
+            <!-- ============================================================== -->
+            <!-- Container fluid  -->
+            <!-- ============================================================== -->
+            <div class="container-fluid">
+                <!-- ============================================================== -->
+                <!-- Start Page Content -->
+                <!-- ============================================================== -->
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <form method="post" class="form-horizontal"> {% csrf_token %}
+                                <div class="card-body">
+                                    <h4 class="card-title">Personal Info</h4>
+                                    {{ form }}
+                                </div>
+                                <div class="border-top">
+                                    <div class="card-body">
+                                        <button type="submit" class="btn btn-primary">Submit</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- editor -->
+                <!-- ============================================================== -->
+                <!-- End PAge Content -->
+                <!-- ============================================================== -->
+                <!-- ============================================================== -->
+                <!-- Right sidebar -->
+                <!-- ============================================================== -->
+                <!-- .right-sidebar -->
+                <!-- ============================================================== -->
+                <!-- End Right sidebar -->
+                <!-- ============================================================== -->
             </div>
-        </form>
-    </div>
-</div>
-
-<div class="card mt-4">
-    <div class="card-body">
-        <div class="row text-center">
-            <div class="col-md-4">
-                <i class="bi bi-info-circle text-info" style="font-size: 2rem;"></i>
-                <h6 class="mt-2">Étape 1</h6>
-                <p class="text-muted">Créer la commande avec les informations de base</p>
-            </div>
-            <div class="col-md-4">
-                <i class="bi bi-arrow-right text-muted" style="font-size: 2rem;"></i>
-                <h6 class="mt-2">Étape 2</h6>
-                <p class="text-muted">Ajouter des produits à la commande</p>
-            </div>
-            <div class="col-md-4">
-                <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
-                <h6 class="mt-2">Étape 3</h6>
-                <p class="text-muted">Finaliser et encaisser</p>
-            </div>
+            <!-- ============================================================== -->
+            <!-- End Container fluid  -->
+            <!-- ============================================================== -->
+            <!-- ============================================================== -->
         </div>
-    </div>
-</div>
+        <!-- ============================================================== -->
+        <!-- End Page wrapper  -->
+        <!-- ============================================================== -->
+
 {% endblock %}
