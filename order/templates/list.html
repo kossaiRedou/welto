@@ -33,13 +33,21 @@ Historique des Ventes
                 <input type="text" name="search_name" class="form-control" 
                        placeholder="Nom de la commande..." value="{{ request.GET.search_name }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Date de début</label>
                 <input type="date" name="date_start" class="form-control" value="{{ request.GET.date_start }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">Date de fin</label>
                 <input type="date" name="date_end" class="form-control" value="{{ request.GET.date_end }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">paiement</label>
+                <select name="is_paid" class="form-control">
+                    <option value="">Tous</option>
+                    <option value="True" {% if request.GET.is_paid == "True" %}selected{% endif %}>Payé</option>
+                    <option value="False" {% if request.GET.is_paid == "False" %}selected{% endif %}>Non payé</option>
+                </select>
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary me-2">

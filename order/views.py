@@ -25,18 +25,18 @@ class HomepageView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Données de base
+        # Données de base - utilisation de datetime.date pour compatibilité avec DateField
         today = datetime.date.today()
         yesterday = today - datetime.timedelta(days=1)
-        this_week_start = today - datetime.timedelta(days=today.weekday())
+        seven_days_ago = today - datetime.timedelta(days=6)  # 7 derniers jours (aujourd'hui inclus)
         this_month_start = today.replace(day=1)
         
-        # Toutes les commandes
+        # Toutes les commandes - filtrage sur DateField
         all_orders = Order.objects.all()
         today_orders = all_orders.filter(date=today)
         yesterday_orders = all_orders.filter(date=yesterday)
-        week_orders = all_orders.filter(date__gte=this_week_start)
-        month_orders = all_orders.filter(date__gte=this_month_start)
+        week_orders = all_orders.filter(date__gte=seven_days_ago, date__lte=today)
+        month_orders = all_orders.filter(date__gte=this_month_start, date__lte=today)
         
         # === STATISTIQUES SIMPLES ET PARLANTES ===
         

@@ -93,7 +93,7 @@ Tableau de Bord
                 {% for order in recent_orders %}
                     <div class="sale-item">
                         <div>
-                            <div class="sale-time">{{ order.date|date:"H:i"|default:"00:00" }}</div>
+                            <div class="sale-time">{{ order.date|date:"d/m" }}</div>
                             <div class="sale-products">
                                 {% if order.title %}
                                     {{ order.title }}

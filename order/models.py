@@ -18,7 +18,7 @@ class OrderManager(models.Manager):
 
 
 class Order(models.Model):
-    date = models.DateField(default=datetime.datetime.now())
+    date = models.DateField(default=datetime.date.today)
     title = models.CharField(blank=True, max_length=150)
     timestamp = models.DateField(auto_now_add=True)
     value = models.DecimalField(default=0.00, decimal_places=2, max_digits=20)
@@ -67,12 +67,21 @@ class Order(models.Model):
         search_name = request.GET.get('search_name', None)
         date_start = request.GET.get('date_start', None)
         date_end = request.GET.get('date_end', None)
+        is_paid = request.GET.get('is_paid', None)
         queryset = queryset.filter(title__contains=search_name) if search_name else queryset
         if date_end and date_start and date_end >= date_start:
             date_start = datetime.datetime.strptime(date_start, '%m/%d/%Y').strftime('%Y-%m-%d')
             date_end = datetime.datetime.strptime(date_end, '%m/%d/%Y').strftime('%Y-%m-%d')
             print(date_start, date_end)
             queryset = queryset.filter(date__range=[date_start, date_end])
+        
+        # Filtrer par statut de paiement
+        if is_paid == "True":
+            queryset = queryset.filter(is_paid=True)
+        elif is_paid == "False":
+            queryset = queryset.filter(is_paid=False)
+        # Si is_paid est None ou "", on ne filtre pas (affiche tous)
+        
         return queryset
 
 

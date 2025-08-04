@@ -1,19 +1,31 @@
 {% extends 'base_with_sidebar.html' %} {% load render_table from django_tables2 %}
 
+{% block title %}Modifier la commande{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-pencil-square me-2"></i>
+Modifier la commande
+{% endblock %}
+
+
+
 {% block content %}
     <div class="page-wrapper">
         <div class="page-breadcrumb">
             <div class="row">
+                
                 <div class="col-12 d-flex no-block align-items-center">
-                    <h4 class="page-title">{{ instance.date }} - {{ instance }}</h4>
                     <div class="ml-auto text-right">
                         <nav aria-label="breadcrumb">
                             <ol class="breadcrumb">
                                 <li class="breadcrumb-item"><a href="{% url 'homepage' %}">Home</a></li>
-                                <li class="breadcrumb-item active" aria-current="page">{{ instance }}</li>
                             </ol>
                         </nav>
                     </div>
+                </div>
+
+                <div class="col-12 d-flex no-block align-items-center">
+                    <h4 class="page-title">{{ instance.date }} - {{ instance }}</h4>
                 </div>
             </div>
         </div>
