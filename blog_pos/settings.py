@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
     'product',
     'order',
+    'client',
 
     'django_tables2',
 ]

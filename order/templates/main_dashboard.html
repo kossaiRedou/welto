@@ -95,11 +95,7 @@ Tableau de Bord
                         <div>
                             <div class="sale-time">{{ order.date|date:"d/m" }}</div>
                             <div class="sale-products">
-                                {% if order.title %}
-                                    {{ order.title }}
-                                {% else %}
-                                    Client: {{ order.id }}
-                                {% endif %}
+                                {{ order.client_display }}
                             </div>
                         </div>
                         <div class="sale-amount success">

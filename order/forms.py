@@ -13,7 +13,8 @@ class BaseForm(forms.Form):
 
 class OrderCreateForm(BaseForm, forms.ModelForm):
     date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
-
+    # Le champ client sera géré via AJAX, pas dans le formulaire Django
+    
     class Meta:
         model = Order
         fields = ['date', 'title' ]

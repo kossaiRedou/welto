@@ -25,6 +25,8 @@ class Order(models.Model):
     discount = models.DecimalField(default=0.00, decimal_places=2, max_digits=20)
     final_value = models.DecimalField(default=0.00, decimal_places=2, max_digits=20)
     is_paid = models.BooleanField(default=True)
+    # Relation optionnelle vers le client (ajout non-intrusif)
+    client = models.ForeignKey('client.Client', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders', help_text="Client associé (optionnel)")
     objects = models.Manager()
     browser = OrderManager()
 
@@ -85,6 +87,12 @@ class Order(models.Model):
     
     def tag_remaining_amount(self):
         return f'{self.remaining_amount()} {CURRENCY}'
+    
+    def client_display(self):
+        """Affichage du client pour les templates"""
+        if self.client:
+            return f"{self.client.name} ({self.client.phone})"
+        return self.title if self.title else f"Commande #{self.id}"
 
     @staticmethod
     def filter_data(request, queryset):

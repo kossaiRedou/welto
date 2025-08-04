@@ -45,10 +45,103 @@ Nouvelle vente
                 <div class="row">
                     <div class="col-md-12">
                         <div class="card">
-                            <form method="post" class="form-horizontal"> {% csrf_token %}
+                            <form method="post" class="form-horizontal" id="order-form"> {% csrf_token %}
                                 <div class="card-body">
-                                    <h4 class="card-title">Personal Info</h4>
+                                    <h4 class="card-title">Nouvelle Commande</h4>
+                                    
+                                    <!-- Sélection Client -->
+                                    <div class="client-selection mb-4">
+                                        <h5 class="mb-3">
+                                            <i class="bi bi-person me-2"></i>
+                                            Client
+                                        </h5>
+                                        
+                                        <!-- Recherche Client -->
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <label class="form-label">Rechercher par téléphone</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">
+                                                        <i class="bi bi-telephone"></i>
+                                                    </span>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           id="phone-search" 
+                                                           placeholder="Tapez le numéro..."
+                                                           autocomplete="off">
+                                                </div>
+                                                
+                                                <!-- Résultats de recherche -->
+                                                <div id="client-results" class="mt-2" style="display: none;">
+                                                    <div class="list-group" id="client-list"></div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <label class="form-label">Client sélectionné</label>
+                                                <div class="selected-client p-3 border rounded bg-light" id="selected-client" style="display: none;">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div>
+                                                            <strong id="client-name"></strong><br>
+                                                            <small class="text-muted" id="client-phone"></small>
+                                                        </div>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" id="clear-client">
+                                                            <i class="bi bi-x"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Message si pas de client -->
+                                                <div class="no-client text-muted" id="no-client">
+                                                    <small>Aucun client sélectionné (optionnel)</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Création rapide de client -->
+                                        <div class="row mt-3">
+                                            <div class="col-12">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="create-new-client">
+                                                    <label class="form-check-label" for="create-new-client">
+                                                        Créer un nouveau client
+                                                    </label>
+                                                </div>
+                                                
+                                                <!-- Formulaire création client -->
+                                                <div id="new-client-form" class="mt-3" style="display: none;">
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">Nom complet</label>
+                                                            <input type="text" class="form-control" id="new-client-name" placeholder="Nom du client">
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label">Téléphone</label>
+                                                            <input type="text" class="form-control" id="new-client-phone" placeholder="Numéro de téléphone">
+                                                        </div>
+                                                        <div class="col-md-2 d-flex align-items-end">
+                                                            <button type="button" class="btn btn-success w-100" id="save-new-client">
+                                                                <i class="bi bi-plus me-1"></i>
+                                                                Créer
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <hr>
+                                    
+                                    <!-- Champs de commande existants -->
+                                    <h5 class="mb-3">
+                                        <i class="bi bi-cart me-2"></i>
+                                        Détails de la commande
+                                    </h5>
                                     {{ form }}
+                                    
+                                    <!-- Champ caché pour l'ID client -->
+                                    <input type="hidden" id="client_id" name="client_id" value="">
                                 </div>
                                 <div class="border-top">
                                     <div class="card-body">
@@ -80,4 +173,214 @@ Nouvelle vente
         <!-- End Page wrapper  -->
         <!-- ============================================================== -->
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    let searchTimeout;
+    let selectedClientId = null;
+    
+    // === RECHERCHE DE CLIENTS ===
+    $('#phone-search').on('input', function() {
+        const phone = $(this).val().trim();
+        
+        clearTimeout(searchTimeout);
+        
+        if (phone.length < 2) {
+            $('#client-results').hide();
+            return;
+        }
+        
+        searchTimeout = setTimeout(function() {
+            searchClients(phone);
+        }, 300); // Délai de 300ms pour éviter trop de requêtes
+    });
+    
+    function searchClients(phone) {
+        $.ajax({
+            url: '{% url "client:ajax_search" %}',
+            type: 'GET',
+            data: { phone: phone },
+            success: function(response) {
+                if (response.success) {
+                    displayClientResults(response.clients);
+                } else {
+                    console.error('Erreur recherche:', response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Erreur AJAX:', error);
+            }
+        });
+    }
+    
+    function displayClientResults(clients) {
+        const clientList = $('#client-list');
+        clientList.empty();
+        
+        if (clients.length === 0) {
+            clientList.append(`
+                <div class="list-group-item text-muted">
+                    <i class="bi bi-search me-2"></i>
+                    Aucun client trouvé
+                </div>
+            `);
+        } else {
+            clients.forEach(function(client) {
+                clientList.append(`
+                    <a href="#" class="list-group-item list-group-item-action client-item" data-client-id="${client.id}">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${client.name}</strong><br>
+                                <small class="text-muted">${client.phone}</small>
+                            </div>
+                            <div class="text-end">
+                                <small class="text-muted">
+                                    ${client.total_orders} commande(s)<br>
+                                    Dernière: ${client.last_order}
+                                </small>
+                            </div>
+                        </div>
+                    </a>
+                `);
+            });
+        }
+        
+        $('#client-results').show();
+    }
+    
+    // === SÉLECTION D'UN CLIENT ===
+    $(document).on('click', '.client-item', function(e) {
+        e.preventDefault();
+        
+        const clientId = $(this).data('client-id');
+        const clientName = $(this).find('strong').text();
+        const clientPhone = $(this).find('small').first().text();
+        
+        selectClient(clientId, clientName, clientPhone);
+    });
+    
+    function selectClient(id, name, phone) {
+        selectedClientId = id;
+        
+        // Mettre à jour l'interface
+        $('#client-name').text(name);
+        $('#client-phone').text(phone);
+        $('#selected-client').show();
+        $('#no-client').hide();
+        $('#client_id').val(id);
+        
+        // Cacher les résultats et vider la recherche
+        $('#client-results').hide();
+        $('#phone-search').val('');
+        
+        // Décocher la création de nouveau client
+        $('#create-new-client').prop('checked', false);
+        $('#new-client-form').hide();
+    }
+    
+    // === EFFACER LA SÉLECTION ===
+    $('#clear-client').click(function() {
+        clearClientSelection();
+    });
+    
+    function clearClientSelection() {
+        selectedClientId = null;
+        $('#selected-client').hide();
+        $('#no-client').show();
+        $('#client_id').val('');
+        $('#phone-search').val('');
+        $('#client-results').hide();
+    }
+    
+    // === CRÉATION DE NOUVEAU CLIENT ===
+    $('#create-new-client').change(function() {
+        if ($(this).is(':checked')) {
+            $('#new-client-form').show();
+            clearClientSelection();
+            $('#phone-search').val('').prop('disabled', true);
+        } else {
+            $('#new-client-form').hide();
+            $('#phone-search').prop('disabled', false);
+        }
+    });
+    
+    $('#save-new-client').click(function() {
+        const name = $('#new-client-name').val().trim();
+        const phone = $('#new-client-phone').val().trim();
+        
+        if (!name || !phone) {
+            alert('Veuillez remplir le nom et le téléphone');
+            return;
+        }
+        
+        const btn = $(this);
+        const originalText = btn.html();
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-1"></i>Création...');
+        
+        $.ajax({
+            url: '{% url "client:ajax_create" %}',
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify({
+                name: name,
+                phone: phone
+            }),
+            success: function(response) {
+                if (response.success) {
+                    // Sélectionner le nouveau client
+                    selectClient(response.client.id, response.client.name, response.client.phone);
+                    
+                    // Réinitialiser le formulaire
+                    $('#new-client-name').val('');
+                    $('#new-client-phone').val('');
+                    $('#create-new-client').prop('checked', false);
+                    $('#new-client-form').hide();
+                    $('#phone-search').prop('disabled', false);
+                    
+                    // Message de succès
+                    showAlert('success', response.message);
+                } else {
+                    showAlert('danger', response.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                showAlert('danger', 'Erreur de connexion. Veuillez réessayer.');
+                console.error('Erreur AJAX:', error);
+            },
+            complete: function() {
+                btn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // === FONCTION D'ALERTE ===
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        $('.page-wrapper').prepend(alertHtml);
+        
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+    }
+    
+    // === CACHER LES RÉSULTATS QUAND ON CLIQUE AILLEURS ===
+    $(document).click(function(e) {
+        if (!$(e.target).closest('#phone-search, #client-results').length) {
+            $('#client-results').hide();
+        }
+    });
+});
+</script>
 {% endblock %}

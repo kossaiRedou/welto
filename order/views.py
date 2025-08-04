@@ -171,6 +171,18 @@ class CreateOrderView(CreateView):
 
     def form_valid(self, form):
         object = form.save()
+        
+        # Gérer l'association avec le client si fourni
+        client_id = self.request.POST.get('client_id')
+        if client_id:
+            try:
+                from client.models import Client
+                client = Client.objects.get(id=client_id)
+                object.client = client
+                object.save()
+            except Client.DoesNotExist:
+                pass  # Ignorer si le client n'existe pas
+        
         object.refresh_from_db()
         self.new_object = object
         return super().form_valid(form)
