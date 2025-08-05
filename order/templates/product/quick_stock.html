@@ -19,7 +19,15 @@
             <div class="card-body">
                 <p class="mb-2"><strong>Nom :</strong> {{ product.title }}</p>
                 <p class="mb-2"><strong>Catégorie :</strong> {{ product.category.title|default:"Sans catégorie" }}</p>
-                <p class="mb-2"><strong>Prix :</strong> {{ product.final_value }} GMD</p>
+                <p class="mb-2"><strong>Prix de vente :</strong> {{ product.final_value }} GMD</p>
+                <p class="mb-2">
+                    <strong>Prix d'achat :</strong> 
+                    {% if product.prix_achat > 0 %}
+                        <span class="text-success">{{ product.prix_achat }} GMD</span>
+                    {% else %}
+                        <span class="text-muted">Non défini</span>
+                    {% endif %}
+                </p>
                 <p class="mb-0">
                     <strong>Stock Actuel :</strong> 
                     <span class="badge bg-{% if product.qty > 5 %}success{% elif product.qty > 0 %}warning{% else %}danger{% endif %} fs-6">
@@ -108,6 +116,70 @@
         </div>
     </div>
 
+    <!-- Section Traçabilité (visible si l'app aprovision est disponible) -->
+    {% if aprovision_available %}
+    <div class="card mt-4" id="tracability-section">
+        <div class="card-header bg-success text-white">
+            <h6 class="mb-0">
+                <i class="bi bi-graph-up me-2"></i>
+                Traçabilité et Coûts
+                <small class="ms-2">(Optionnel pour ajustements, obligatoire pour approvisionnements)</small>
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="{{ form.prix_achat_unitaire.id_for_label }}" class="form-label">
+                            Prix d'achat unitaire (FCFA) <span class="text-danger" id="prix-required">*</span>
+                        </label>
+                        <div class="input-group">
+                            {{ form.prix_achat_unitaire }}
+                            <span class="input-group-text">FCFA</span>
+                        </div>
+                        <small class="form-text text-muted">{{ form.prix_achat_unitaire.help_text }}</small>
+                        {% if form.prix_achat_unitaire.errors %}
+                            <div class="text-danger mt-1">{{ form.prix_achat_unitaire.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="{{ form.fournisseur.id_for_label }}" class="form-label">
+                            Fournisseur
+                        </label>
+                        {{ form.fournisseur }}
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="{{ form.reference.id_for_label }}" class="form-label">
+                            Référence facture
+                        </label>
+                        {{ form.reference }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">
+                            Description
+                        </label>
+                        {{ form.description }}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Calcul automatique du coût total -->
+            <div class="alert alert-info" id="cost-preview" style="display: none;">
+                <i class="bi bi-calculator me-2"></i>
+                <strong>Coût total estimé :</strong> <span id="cost-total">0</span> FCFA
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="alert alert-info mt-3" id="preview" style="display: none;">
         <i class="bi bi-calculator me-2"></i>
         <strong>Aperçu :</strong> <span id="preview_text"></span>
@@ -127,11 +199,13 @@
 {% block extra_js %}
 <script>
 const currentStock = {{ product.qty }};
+const aprovisionAvailable = {{ aprovision_available|yesno:"true,false" }};
 
 function setAction(action, quantity) {
     document.getElementById('id_action').value = action;
     document.getElementById('id_quantity').value = quantity;
     updatePreview();
+    updateCostPreview();
 }
 
 function updatePreview() {
@@ -139,6 +213,22 @@ function updatePreview() {
     const quantity = parseInt(document.getElementById('id_quantity').value) || 0;
     const preview = document.getElementById('preview');
     const previewText = document.getElementById('preview_text');
+    
+    // Gérer l'affichage du champ prix d'achat
+    if (aprovisionAvailable) {
+        const prixRequired = document.getElementById('prix-required');
+        const tracabilitySection = document.getElementById('tracability-section');
+        
+        if (action === 'add') {
+            prixRequired.style.display = 'inline';
+            tracabilitySection.classList.add('border-warning');
+            tracabilitySection.classList.remove('border-success');
+        } else {
+            prixRequired.style.display = 'none';
+            tracabilitySection.classList.remove('border-warning');
+            tracabilitySection.classList.add('border-success');
+        }
+    }
     
     if (quantity > 0) {
         let newStock;
@@ -169,11 +259,64 @@ function updatePreview() {
     }
 }
 
-// Écouter les changements
-document.getElementById('id_action').addEventListener('change', updatePreview);
-document.getElementById('id_quantity').addEventListener('input', updatePreview);
+function updateCostPreview() {
+    if (!aprovisionAvailable) return;
+    
+    const action = document.getElementById('id_action').value;
+    const quantity = parseInt(document.getElementById('id_quantity').value) || 0;
+    const prixAchat = parseFloat(document.getElementById('id_prix_achat_unitaire').value) || 0;
+    const costPreview = document.getElementById('cost-preview');
+    const costTotal = document.getElementById('cost-total');
+    
+    if (action === 'add' && quantity > 0 && prixAchat > 0) {
+        const total = quantity * prixAchat;
+        costTotal.textContent = total.toLocaleString();
+        costPreview.style.display = 'block';
+    } else {
+        costPreview.style.display = 'none';
+    }
+}
 
-// Initialiser l'aperçu
+// Validation avant soumission
+function validateForm() {
+    if (!aprovisionAvailable) return true;
+    
+    const action = document.getElementById('id_action').value;
+    const prixAchat = parseFloat(document.getElementById('id_prix_achat_unitaire').value) || 0;
+    
+    if (action === 'add' && prixAchat <= 0) {
+        alert('Le prix d\'achat unitaire est obligatoire pour les approvisionnements.');
+        document.getElementById('id_prix_achat_unitaire').focus();
+        return false;
+    }
+    
+    return true;
+}
+
+// Écouter les changements
+document.getElementById('id_action').addEventListener('change', function() {
+    updatePreview();
+    updateCostPreview();
+});
+
+document.getElementById('id_quantity').addEventListener('input', function() {
+    updatePreview();
+    updateCostPreview();
+});
+
+if (aprovisionAvailable) {
+    document.getElementById('id_prix_achat_unitaire').addEventListener('input', updateCostPreview);
+    
+    // Validation du formulaire
+    document.getElementById('stock_form').addEventListener('submit', function(e) {
+        if (!validateForm()) {
+            e.preventDefault();
+        }
+    });
+}
+
+// Initialiser les aperçus
 updatePreview();
+updateCostPreview();
 </script>
 {% endblock %}

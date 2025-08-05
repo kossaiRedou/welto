@@ -4,6 +4,9 @@ from .managers import ProductManager
 
 CURRENCY = settings.CURRENCY
 
+# Constante pour le seuil de stock faible
+LOW_STOCK_THRESHOLD = 5
+
 
 class Category(models.Model):
     title = models.CharField(max_length=150, unique=True)
@@ -23,6 +26,7 @@ class Product(models.Model):
     discount_value = models.DecimalField(default=0.00, decimal_places=2, max_digits=10)
     final_value = models.DecimalField(default=0.00, decimal_places=2, max_digits=10)
     qty = models.PositiveIntegerField(default=0)
+    prix_achat = models.DecimalField(default=0.00, decimal_places=2, max_digits=10, help_text="Prix d'achat unitaire (pour la traçabilité)")
 
     objects = models.Manager()
     broswer = ProductManager()
@@ -40,3 +44,9 @@ class Product(models.Model):
     def tag_final_value(self):
         return f'{self.final_value} {CURRENCY}'
     tag_final_value.short_description = 'Value'
+    
+    def tag_prix_achat(self):
+        if self.prix_achat > 0:
+            return f'{self.prix_achat} {CURRENCY}'
+        return 'Non défini'
+    tag_prix_achat.short_description = 'Prix d\'achat'

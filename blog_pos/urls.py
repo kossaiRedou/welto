@@ -27,6 +27,9 @@ urlpatterns = [
     
     # Gestion des clients
     path('clients/', include('client.urls')),
+    
+    # Gestion des approvisionnements et dépenses
+    path('aprovision/', include('aprovision.urls')),
 
     #  ajax_calls
     path('ajax/search-products/<int:pk>/', ajax_search_products, name='ajax-search'),

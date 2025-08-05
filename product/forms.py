@@ -7,7 +7,7 @@ class SimpleProductForm(forms.ModelForm):
     
     class Meta:
         model = Product
-        fields = ['title', 'category', 'value', 'discount_value', 'qty', 'active']
+        fields = ['title', 'category', 'value', 'discount_value', 'active']
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -29,11 +29,7 @@ class SimpleProductForm(forms.ModelForm):
                 'step': '0.01',
                 'min': '0'
             }),
-            'qty': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'placeholder': '0',
-                'min': '0'
-            }),
+
             'active': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             })
@@ -43,14 +39,12 @@ class SimpleProductForm(forms.ModelForm):
             'category': 'Catégorie',
             'value': 'Prix Normal (GMD)',
             'discount_value': 'Prix Réduit (GMD)',
-            'qty': 'Quantité en Stock',
             'active': 'Produit Actif'
         }
         help_texts = {
             'title': 'Donnez un nom clair à votre produit',
             'value': 'Prix de vente normal',
             'discount_value': 'Prix réduit (optionnel, laissez 0 si pas de réduction)',
-            'qty': 'Nombre d\'unités en stock',
             'active': 'Décochez pour désactiver temporairement le produit'
         }
 
@@ -63,7 +57,6 @@ class SimpleProductForm(forms.ModelForm):
         # Valeurs par défaut
         if not self.instance.pk:  # Nouveau produit
             self.fields['active'].initial = True
-            self.fields['qty'].initial = 0
             self.fields['value'].initial = 0
             self.fields['discount_value'].initial = 0
 
@@ -102,3 +95,64 @@ class QuickStockForm(forms.Form):
             'placeholder': 'Quantité'
         })
     )
+    
+    # Nouveaux champs pour la traçabilité
+    prix_achat_unitaire = forms.DecimalField(
+        required=False,
+        min_value=0,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Prix d\'achat unitaire (FCFA)',
+            'step': '0.01'
+        }),
+        help_text="Obligatoire pour les ajouts de stock (approvisionnements)"
+    )
+    
+    fournisseur = forms.CharField(
+        required=False,
+        max_length=150,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Nom du fournisseur (optionnel)'
+        })
+    )
+    
+    reference = forms.CharField(
+        required=False,
+        max_length=50,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'N° facture ou référence (optionnel)'
+        })
+    )
+    
+    description = forms.CharField(
+        required=False,
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Description du mouvement (optionnel)'
+        })
+    )
+    
+    def __init__(self, *args, **kwargs):
+        product = kwargs.pop('product', None)
+        super().__init__(*args, **kwargs)
+        
+        # Pré-remplir le prix d'achat si le produit en a un
+        if product and product.prix_achat > 0:
+            self.fields['prix_achat_unitaire'].initial = product.prix_achat
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        action = cleaned_data.get('action')
+        prix_achat = cleaned_data.get('prix_achat_unitaire')
+        
+        # Le prix d'achat est obligatoire pour les ajouts de stock
+        if action == 'add' and not prix_achat:
+            raise forms.ValidationError(
+                'Le prix d\'achat unitaire est obligatoire pour les approvisionnements.'
+            )
+        
+        return cleaned_data

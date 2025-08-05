@@ -272,6 +272,14 @@
                 <i class="bi bi-people"></i>
                 <span>Clients</span>
             </a>
+            <a href="{% url 'aprovision:dashboard' %}" class="nav-link {% if 'aprovision' in request.resolver_match.namespace|default:'' and 'analytics' not in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-boxes"></i>
+                <span>Approvisionnement</span>
+            </a>
+            <a href="{% url 'aprovision:analytics_dashboard' %}" class="nav-link {% if 'analytics' in request.resolver_match.url_name %}active{% endif %}">
+                <i class="bi bi-graph-up"></i>
+                <span>Analytics</span>
+            </a>
             <a href="{% url 'order_list' %}" class="nav-link {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
                 <i class="bi bi-clock-history"></i>
                 <span>Historique</span>

@@ -1,0 +1,657 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}Gestion des Approvisionnements{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-boxes me-2"></i>
+Gestion des Approvisionnements & Dépenses
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">Suivi des stocks, approvisionnements et dépenses</small>
+{% endblock %}
+
+{% block header_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'aprovision:analytics_dashboard' %}" class="btn btn-info btn-sm">
+        <i class="bi bi-graph-up me-1"></i>
+        Analytics Avancé
+    </a>
+    <a href="{% url 'product:product_list' %}" class="btn btn-success btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>
+        Gérer les Stocks
+    </a>
+    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#depenseRapideModal">
+        <i class="bi bi-cash-coin me-1"></i>
+        Dépense Rapide
+    </button>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-left: 4px solid #007bff;
+        transition: transform 0.2s ease;
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    }
+    .stat-card.success { border-left-color: #28a745; }
+    .stat-card.warning { border-left-color: #ffc107; }
+    .stat-card.danger { border-left-color: #dc3545; }
+    .stat-card.info { border-left-color: #17a2b8; }
+    
+    .badge-mouvement {
+        font-size: 0.75em;
+        padding: 0.4em 0.6em;
+    }
+    
+    .table-responsive {
+        border-radius: 0.375rem;
+        overflow: hidden;
+    }
+    
+    .progress-thin {
+        height: 4px;
+    }
+    
+    .filter-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin: 20px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content_wrapper %}
+<!-- Filtres de période -->
+<div class="card filter-card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label text-white">
+                    <i class="bi bi-calendar3 me-1"></i>
+                    Date de début
+                </label>
+                <input type="date" name="date_debut" class="form-control" value="{{ date_debut|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-white">
+                    <i class="bi bi-calendar3 me-1"></i>
+                    Date de fin
+                </label>
+                <input type="date" name="date_fin" class="form-control" value="{{ date_fin|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label text-white">
+                    <i class="bi bi-tags me-1"></i>
+                    Catégorie
+                </label>
+                <select name="categorie" class="form-select">
+                    <option value="">Toutes les catégories</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-light me-2">
+                    <i class="bi bi-funnel me-1"></i>
+                    Filtrer
+                </button>
+                <a href="{% url 'aprovision:dashboard' %}" class="btn btn-outline-light">
+                    <i class="bi bi-arrow-clockwise me-1"></i>
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Statistiques principales -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card danger">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Total Dépenses</h6>
+                        <h3 class="mb-0">{{ total_depenses|floatformat:0 }} FCFA</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-cash-stack text-danger" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Coût Approvisionnements</h6>
+                        <h3 class="mb-0">{{ cout_approvisionnements|floatformat:0 }} FCFA</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-box-seam text-success" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Produits Stock Faible</h6>
+                        <h3 class="mb-0">{{ produits_stock_faible|length }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-exclamation-triangle text-info" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title text-muted mb-2">Types de Dépenses</h6>
+                        <h3 class="mb-0">{{ depenses_par_type|length }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-tags text-warning" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Graphiques et analyses -->
+<div class="row mb-4">
+    <!-- Dépenses par type -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-pie-chart me-2"></i>
+                    Dépenses par Type
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if depenses_par_type %}
+                    {% for type in depenses_par_type %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="me-3" style="width: 20px; height: 20px; background-color: {{ type.type_depense__couleur }}; border-radius: 50%;"></div>
+                            <div>
+                                <strong>{{ type.type_depense__nom }}</strong>
+                                <small class="text-muted d-block">{{ type.nombre }} dépense{{ type.nombre|pluralize }}</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <strong>{{ type.total|floatformat:0 }} FCFA</strong>
+                            {% if total_depenses > 0 %}
+                                <div class="progress progress-thin mt-1" style="width: 100px;">
+                                    <div class="progress-bar" style="width: {{ type.pourcentage|floatformat:1 }}%; background-color: {{ type.type_depense__couleur }};"></div>
+                                </div>
+                                <small class="text-muted">{{ type.pourcentage|floatformat:1 }}%</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-3">Aucune dépense sur cette période</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mouvements de stock -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-arrow-left-right me-2"></i>
+                    Mouvements de Stock
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if mouvements_par_type %}
+                    {% for mouvement in mouvements_par_type %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="badge badge-mouvement bg-{{ mouvement.type_mouvement|default:'secondary' }}">
+                                {% if mouvement.type_mouvement == 'ENTREE' %}
+                                    <i class="bi bi-arrow-up-circle me-1"></i> Entrées
+                                {% elif mouvement.type_mouvement == 'SORTIE_VENTE' %}
+                                    <i class="bi bi-cart-check me-1"></i> Ventes
+                                {% elif mouvement.type_mouvement == 'SORTIE_PERTE' %}
+                                    <i class="bi bi-exclamation-triangle me-1"></i> Pertes
+                                {% else %}
+                                    <i class="bi bi-arrow-right-circle me-1"></i> {{ mouvement.get_type_mouvement_display }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="text-end">
+                            <strong>{{ mouvement.nombre }} mouvement{{ mouvement.nombre|pluralize }}</strong>
+                            <small class="text-muted d-block">
+                                {% if mouvement.quantite_totale > 0 %}+{% endif %}{{ mouvement.quantite_totale }} unités
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center py-3">Aucun mouvement sur cette période</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Produits à réapprovisionner -->
+{% if produits_stock_faible %}
+<div class="card mb-4">
+    <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Produits à Réapprovisionner (Stock < 5)
+        </h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for produit in produits_stock_faible %}
+            <div class="col-md-4 mb-3">
+                <div class="card border-warning">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ produit.title }}</h6>
+                                <small class="text-muted">{{ produit.category|default:"Sans catégorie" }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-warning text-dark">{{ produit.qty }} unités</span>
+                                <a href="{% url 'product:quick_stock' produit.id %}" 
+                                   class="btn btn-sm btn-outline-success mt-1"
+                                   title="Ajuster le stock">
+                                    <i class="bi bi-plus"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Dernières activités -->
+<div class="row">
+    <!-- Dernières dépenses -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-clock-history me-2"></i>
+                    Dernières Dépenses
+                </h6>
+                <a href="{% url 'aprovision:depense_list' %}" class="btn btn-sm btn-outline-primary">
+                    Voir tout
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if dernieres_depenses %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                {% for depense in dernieres_depenses %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2" style="width: 8px; height: 8px; background-color: {{ depense.type_depense.couleur }}; border-radius: 50%;"></div>
+                                            <div>
+                                                <strong>{{ depense.description|truncatechars:30 }}</strong>
+                                                <small class="text-muted d-block">{{ depense.type_depense.nom }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>{{ depense.montant|floatformat:0 }} FCFA</strong>
+                                        <small class="text-muted d-block">{{ depense.date_depense|date:"d/m/Y" }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-3">Aucune dépense récente</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Derniers mouvements -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-arrow-left-right me-2"></i>
+                    Derniers Mouvements
+                </h6>
+                <a href="{% url 'aprovision:mouvement_list' %}" class="btn btn-sm btn-outline-primary">
+                    Voir tout
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if derniers_mouvements %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <tbody>
+                                {% for mouvement in derniers_mouvements %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi {{ mouvement.get_icone }} me-2 text-{{ mouvement.get_couleur_badge }}"></i>
+                                            <div>
+                                                <strong>{{ mouvement.produit.title|truncatechars:25 }}</strong>
+                                                <small class="text-muted d-block">{{ mouvement.get_type_mouvement_display }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong>{% if mouvement.quantite > 0 %}+{% endif %}{{ mouvement.quantite }}</strong>
+                                        <small class="text-muted d-block">{{ mouvement.date_mouvement|date:"d/m H:i" }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center py-3">Aucun mouvement récent</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Dépense Rapide -->
+<div class="modal fade" id="depenseRapideModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-cash-coin me-2"></i>
+                    Ajouter une Dépense Rapide
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="depenseRapideForm">
+                    <div class="mb-3">
+                        <label class="form-label">Type de dépense *</label>
+                        <select class="form-control" id="typeDepense" required>
+                            <option value="">Sélectionner un type</option>
+                            <!-- Les options seront chargées via AJAX -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description *</label>
+                        <input type="text" class="form-control" id="descriptionDepense" 
+                               placeholder="Ex: Achat fournitures bureau" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Montant (FCFA) *</label>
+                        <input type="number" class="form-control" id="montantDepense" 
+                               placeholder="0" min="0" step="0.01" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    Annuler
+                </button>
+                <button type="button" class="btn btn-primary" id="saveDepenseRapide">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Charger les types de dépenses pour le modal
+    loadTypesDepense();
+    
+    // Gestionnaire pour le formulaire de dépense rapide
+    $('#saveDepenseRapide').click(function() {
+        saveDepenseRapide();
+    });
+    
+    // Gestionnaire pour le formulaire de filtres
+    $('form').on('submit', function(e) {
+        e.preventDefault();
+        refreshDashboardStats();
+    });
+    
+    // Bouton de rafraîchissement automatique
+    $('.btn-outline-secondary').click(function(e) {
+        if ($(this).attr('href') === '{% url "aprovision:dashboard" %}') {
+            e.preventDefault();
+            $('input[name="date_debut"]').val('');
+            $('input[name="date_fin"]').val('');
+            refreshDashboardStats();
+        }
+    });
+});
+
+function loadTypesDepense() {
+    $.ajax({
+        url: '{% url "aprovision:ajax_types_depense" %}',
+        method: 'GET',
+        success: function(response) {
+            const select = $('#typeDepense');
+            select.empty().append('<option value="">Sélectionner un type</option>');
+            
+            response.types.forEach(type => {
+                select.append(`
+                    <option value="${type.id}" data-color="${type.couleur}">
+                        ${type.nom}
+                    </option>
+                `);
+            });
+        },
+        error: function() {
+            console.error('Erreur lors du chargement des types de dépenses');
+            // Fallback avec types de base
+            const select = $('#typeDepense');
+            select.append(`
+                <option value="1">Approvisionnement</option>
+                <option value="2">Matériel</option>
+                <option value="3">Main d'œuvre</option>
+                <option value="4">Transport</option>
+                <option value="10">Autres</option>
+            `);
+        }
+    });
+}
+
+function saveDepenseRapide() {
+    const typeDepense = $('#typeDepense').val();
+    const description = $('#descriptionDepense').val().trim();
+    const montant = parseFloat($('#montantDepense').val());
+    
+    if (!typeDepense || !description || !montant || montant <= 0) {
+        alert('Veuillez remplir tous les champs obligatoires');
+        return;
+    }
+    
+    const btn = $('#saveDepenseRapide');
+    const originalText = btn.html();
+    btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-1"></i>Enregistrement...');
+    
+    $.ajax({
+        url: '{% url "aprovision:ajax_depense_rapide" %}',
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val() || '{{ csrf_token }}'
+        },
+        data: JSON.stringify({
+            type_depense: typeDepense,
+            description: description,
+            montant: montant
+        }),
+        contentType: 'application/json',
+        success: function(response) {
+            if (response.success) {
+                alert(response.message);
+                $('#depenseRapideModal').modal('hide');
+                $('#depenseRapideForm')[0].reset();
+                
+                // Rafraîchir les statistiques sans recharger la page
+                refreshDashboardStats();
+            } else {
+                alert('Erreur: ' + response.error);
+            }
+        },
+        error: function() {
+            alert('Erreur de connexion. Veuillez réessayer.');
+        },
+        complete: function() {
+            btn.prop('disabled', false).html(originalText);
+        }
+    });
+}
+
+function refreshDashboardStats() {
+    const dateDebut = $('input[name="date_debut"]').val();
+    const dateFin = $('input[name="date_fin"]').val();
+    
+    // Afficher un indicateur de chargement
+    const loadingHtml = '<i class="bi bi-hourglass-split me-2"></i>Chargement...';
+    $('.stat-card .stats-number').html(loadingHtml);
+    
+    $.ajax({
+        url: '{% url "aprovision:ajax_dashboard_stats" %}',
+        method: 'GET',
+        data: {
+            date_debut: dateDebut,
+            date_fin: dateFin
+        },
+        success: function(response) {
+            // Mettre à jour le total des dépenses
+            $('.stat-card.danger .stats-number').html(response.total_depenses.toLocaleString() + ' FCFA');
+            
+            // Mettre à jour les dépenses par type
+            updateExpenseChart(response.depenses_par_type, response.total_depenses);
+            
+            // Mettre à jour les mouvements récents
+            updateRecentMovements(response.recent_movements);
+            
+            // Afficher la période
+            if (response.periode) {
+                $('.text-muted').first().html(`Dashboard du ${response.periode.debut} au ${response.periode.fin}`);
+            }
+        },
+        error: function() {
+            console.error('Erreur lors du rafraîchissement des statistiques');
+            // Recharger la page en cas d'erreur
+            location.reload();
+        }
+    });
+}
+
+function updateExpenseChart(depensesParType, totalDepenses) {
+    const container = $('.card-body').has('.progress-thin').first();
+    
+    if (depensesParType.length === 0) {
+        container.html('<p class="text-muted text-center py-3">Aucune dépense sur cette période</p>');
+        return;
+    }
+    
+    let html = '';
+    depensesParType.forEach(type => {
+        html += `
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div class="d-flex align-items-center">
+                    <div class="me-3" style="width: 20px; height: 20px; background-color: ${type.type_depense__couleur}; border-radius: 50%;"></div>
+                    <div>
+                        <strong>${type.type_depense__nom}</strong>
+                        <small class="text-muted d-block">${type.nombre} dépense${type.nombre > 1 ? 's' : ''}</small>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <strong>${type.total.toLocaleString()} FCFA</strong>
+                    ${totalDepenses > 0 ? `
+                        <div class="progress progress-thin mt-1" style="width: 100px;">
+                            <div class="progress-bar" style="width: ${type.pourcentage.toFixed(1)}%; background-color: ${type.type_depense__couleur};"></div>
+                        </div>
+                        <small class="text-muted">${type.pourcentage.toFixed(1)}%</small>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.html(html);
+}
+
+function updateRecentMovements(movements) {
+    const container = $('.table-responsive').has('.bi-arrow-left-right').parent().find('tbody');
+    
+    if (movements.length === 0) {
+        container.parent().parent().html('<p class="text-muted text-center py-3">Aucun mouvement récent</p>');
+        return;
+    }
+    
+    let html = '';
+    movements.forEach(mouvement => {
+        html += `
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="bi ${mouvement.icone} me-2 text-${mouvement.couleur}"></i>
+                        <div>
+                            <strong>${mouvement.produit}</strong>
+                            <small class="text-muted d-block">${mouvement.type}</small>
+                        </div>
+                    </div>
+                </td>
+                <td class="text-end">
+                    <strong>${mouvement.quantite > 0 ? '+' : ''}${mouvement.quantite}</strong>
+                    <small class="text-muted d-block">${mouvement.date}</small>
+                </td>
+            </tr>
+        `;
+    });
+    
+    container.html(html);
+}
+</script>
+{% endblock %}

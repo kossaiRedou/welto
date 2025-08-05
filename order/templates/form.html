@@ -146,23 +146,27 @@ Nouvelle vente
                                     
                                     <div class="row">
                                         <div class="col-md-6">
-                                            {{ form.date.label_tag }}
-                                            {{ form.date }}
-                                            {% if form.date.help_text %}
-                                                <small class="form-text text-muted">{{ form.date.help_text }}</small>
-                                            {% endif %}
+                                            <div class="form-group">
+                                                {{ form.date.label_tag }}
+                                                {{ form.date }}
+                                                {% if form.date.help_text %}
+                                                    <small class="form-text text-muted">
+                                                        <i class="bi bi-calendar me-1"></i>
+                                                        {{ form.date.help_text }}
+                                                    </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         <div class="col-md-6">
-                                            {{ form.title.label_tag }}
-                                            {{ form.title }}
-                                            {% if form.title.help_text %}
-                                                <small class="form-text text-muted">
-                                                    <i class="bi bi-info-circle me-1"></i>
-                                                    {{ form.title.help_text }}
-                                                </small>
-                                            {% endif %}
+                                            <div class="alert alert-info">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                <strong>Numéro de commande :</strong> Sera généré automatiquement après création
+                                            </div>
                                         </div>
                                     </div>
+                                    
+                                    <!-- Champ title masqué -->
+                                    {{ form.title }}
                                     
                                     <!-- Champ caché pour l'ID client -->
                                     <input type="hidden" id="client_id" name="client_id" value="">
@@ -418,6 +422,40 @@ $(document).ready(function() {
     $(document).click(function(e) {
         if (!$(e.target).closest('#phone-search, #client-results').length) {
             $('#client-results').hide();
+        }
+    });
+    
+    // === GESTION DE LA DATE PAR DÉFAUT ===
+    $(document).ready(function() {
+        const dateField = $('#id_date');
+        
+        // Bouton pour définir la date d'aujourd'hui
+        if (dateField.length) {
+            const todayButton = $(`
+                <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="set-today">
+                    <i class="bi bi-calendar-today me-1"></i>
+                    Aujourd'hui
+                </button>
+            `);
+            
+            dateField.after(todayButton);
+            
+            $('#set-today').click(function() {
+                const today = new Date().toISOString().split('T')[0];
+                dateField.val(today);
+                $(this).removeClass('btn-outline-primary').addClass('btn-success');
+                setTimeout(() => {
+                    $(this).removeClass('btn-success').addClass('btn-outline-primary');
+                }, 1000);
+            });
+            
+            // Si le champ est vide au moment de la soumission, définir la date d'aujourd'hui
+            $('#order-form').on('submit', function() {
+                if (!dateField.val()) {
+                    const today = new Date().toISOString().split('T')[0];
+                    dateField.val(today);
+                }
+            });
         }
     });
 });

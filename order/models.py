@@ -24,7 +24,7 @@ class Order(models.Model):
     value = models.DecimalField(default=0.00, decimal_places=2, max_digits=20)
     discount = models.DecimalField(default=0.00, decimal_places=2, max_digits=20)
     final_value = models.DecimalField(default=0.00, decimal_places=2, max_digits=20)
-    is_paid = models.BooleanField(default=True)
+    is_paid = models.BooleanField(default=False)
     # Relation optionnelle vers le client (ajout non-intrusif)
     client = models.ForeignKey('client.Client', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders', help_text="Client associé (optionnel)")
     objects = models.Manager()
@@ -123,6 +123,9 @@ class Order(models.Model):
     
     def is_fully_paid(self):
         """Vérifie si la commande est entièrement payée"""
+        # Une commande sans montant n'est pas considérée comme payée
+        if self.final_value <= Decimal('0.00'):
+            return False
         return self.remaining_amount() <= Decimal('0.00')
     
     def tag_total_payments(self):

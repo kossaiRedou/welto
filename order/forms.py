@@ -12,20 +12,31 @@ class BaseForm(forms.Form):
 
 
 class OrderCreateForm(BaseForm, forms.ModelForm):
-    date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    date = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'placeholder': 'Laissez vide pour la date d\'aujourd\'hui'
+        }),
+        help_text='La date d\'aujourd\'hui sera utilisée si ce champ est laissé vide'
+    )
+    # Le champ title est masqué car généré automatiquement
     title = forms.CharField(
         required=False,
         max_length=150,
-        widget=forms.TextInput(attrs={
-            'placeholder': 'Laissez vide pour génération automatique'
-        }),
-        help_text='Un numéro de commande sera généré automatiquement si ce champ est laissé vide'
+        widget=forms.HiddenInput(),  # Masqué pour l'utilisateur
+    )
+    # Forcer is_paid à False explicitement
+    is_paid = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.HiddenInput()
     )
     # Le champ client sera géré via AJAX, pas dans le formulaire Django
     
     class Meta:
         model = Order
-        fields = ['date', 'title' ]
+        fields = ['date', 'title', 'is_paid']
 
 
 class OrderEditForm(BaseForm, forms.ModelForm):
@@ -40,4 +51,4 @@ class OrderEditForm(BaseForm, forms.ModelForm):
 
     class Meta:
         model = Order
-        fields = ['date', 'title', 'discount', 'is_paid']
+        fields = ['date', 'title', 'discount']

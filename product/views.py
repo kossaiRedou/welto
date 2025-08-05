@@ -5,7 +5,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 from django.db.models import Q
 from django.http import JsonResponse
-from .models import Product, Category
+from .models import Product, Category, LOW_STOCK_THRESHOLD
 from .forms import SimpleProductForm, SimpleCategoryForm, QuickStockForm
 
 
@@ -14,7 +14,7 @@ def product_management_home(request):
     """Page d'accueil de la gestion des produits"""
     # Statistiques rapides
     total_products = Product.objects.filter(active=True).count()
-    low_stock = Product.objects.filter(active=True, qty__lt=5).count()
+    low_stock = Product.objects.filter(active=True, qty__lt=LOW_STOCK_THRESHOLD).count()
     out_of_stock = Product.objects.filter(active=True, qty=0).count()
     categories_count = Category.objects.count()
     
@@ -22,7 +22,7 @@ def product_management_home(request):
     recent_products = Product.objects.filter(active=True).order_by('-id')[:5]
     
     # Produits en stock faible
-    low_stock_products = Product.objects.filter(active=True, qty__lt=5, qty__gt=0)[:10]
+    low_stock_products = Product.objects.filter(active=True, qty__lt=LOW_STOCK_THRESHOLD, qty__gt=0)[:10]
     
     # Produits en rupture
     out_of_stock_products = Product.objects.filter(active=True, qty=0)[:10]
@@ -128,35 +128,152 @@ def delete_product(request, pk):
 
 @staff_member_required
 def quick_stock_update(request, pk):
-    """Mise à jour rapide du stock"""
+    """Mise à jour rapide du stock d'un produit avec traçabilité"""
     product = get_object_or_404(Product, pk=pk)
-    
+
     if request.method == 'POST':
-        form = QuickStockForm(request.POST)
+        form = QuickStockForm(request.POST, product=product)
         if form.is_valid():
             action = form.cleaned_data['action']
             quantity = form.cleaned_data['quantity']
+            prix_achat = form.cleaned_data.get('prix_achat_unitaire')
+            fournisseur = form.cleaned_data.get('fournisseur', '')
+            reference = form.cleaned_data.get('reference', '')
+            description = form.cleaned_data.get('description', '')
             
-            if action == 'add':
-                product.qty += quantity
-                messages.success(request, f'{quantity} unités ajoutées au stock de "{product.title}"')
-            elif action == 'remove':
-                if product.qty >= quantity:
-                    product.qty -= quantity
-                    messages.success(request, f'{quantity} unités retirées du stock de "{product.title}"')
-                else:
-                    messages.error(request, f'Stock insuffisant! Stock actuel: {product.qty}')
-                    return redirect('product:product_list')
-            elif action == 'set':
-                product.qty = quantity
-                messages.success(request, f'Stock de "{product.title}" défini à {quantity} unités')
+            # Sauvegarder l'ancien stock pour la traçabilité
+            stock_avant = product.qty
             
-            product.save()
+            try:
+                # Import conditionnel pour éviter les erreurs si l'app n'est pas disponible
+                from aprovision.models import Approvisionnement, MouvementStock, TypeMouvement
+                from aprovision.models import TypeDepense, Depense
+                from django.db import transaction
+                
+                with transaction.atomic():
+                    if action == 'add':
+                        # Approvisionnement avec traçabilité complète
+                        if prix_achat:
+                            # Mettre à jour le prix d'achat du produit
+                            product.prix_achat = prix_achat
+                            product.save()
+                            
+                            # Utiliser le système d'approvisionnement complet
+                            result = Approvisionnement.objects.create_approvisionnement(
+                                produit=product,
+                                quantite=quantity,
+                                prix_achat_unitaire=prix_achat,
+                                description=description or f"Approvisionnement rapide - {quantity} unités",
+                                fournisseur=fournisseur,
+                                reference=reference,
+                                user=request.user
+                            )
+                            messages.success(
+                                request, 
+                                f'{quantity} unités ajoutées au stock de "{product.title}" '
+                                f'(Prix d\'achat: {prix_achat} FCFA, Coût total: {result["depense"].montant} FCFA)'
+                            )
+                        else:
+                            # Ajout simple sans prix (ajustement)
+                            product.qty += quantity
+                            product.save()
+                            
+                            # Créer seulement le mouvement de stock
+                            MouvementStock.objects.create(
+                                produit=product,
+                                type_mouvement=TypeMouvement.AJUSTEMENT_PLUS,
+                                quantite=quantity,
+                                stock_avant=stock_avant,
+                                stock_apres=product.qty,
+                                description=description or f"Ajustement positif - {quantity} unités",
+                                created_by=request.user
+                            )
+                            messages.success(request, f'{quantity} unités ajoutées au stock de "{product.title}"')
+                            
+                    elif action == 'remove':
+                        if product.qty >= quantity:
+                            product.qty -= quantity
+                            product.save()
+                            
+                            # Créer le mouvement de stock
+                            MouvementStock.objects.create(
+                                produit=product,
+                                type_mouvement=TypeMouvement.AJUSTEMENT_MOINS,
+                                quantite=-quantity,
+                                stock_avant=stock_avant,
+                                stock_apres=product.qty,
+                                description=description or f"Ajustement négatif - {quantity} unités retirées",
+                                created_by=request.user
+                            )
+                            messages.success(request, f'{quantity} unités retirées du stock de "{product.title}"')
+                        else:
+                            messages.error(request, f'Stock insuffisant! Stock actuel: {product.qty}')
+                            return redirect('product:product_list')
+                            
+                    elif action == 'set':
+                        old_qty = product.qty
+                        product.qty = quantity
+                        product.save()
+                        
+                        # Déterminer le type de mouvement
+                        if quantity > old_qty:
+                            mouvement_type = TypeMouvement.AJUSTEMENT_PLUS
+                            mouvement_qty = quantity - old_qty
+                        elif quantity < old_qty:
+                            mouvement_type = TypeMouvement.AJUSTEMENT_MOINS
+                            mouvement_qty = -(old_qty - quantity)
+                        else:
+                            mouvement_qty = 0  # Pas de mouvement si identique
+                        
+                        if mouvement_qty != 0:
+                            MouvementStock.objects.create(
+                                produit=product,
+                                type_mouvement=mouvement_type,
+                                quantite=mouvement_qty,
+                                stock_avant=stock_avant,
+                                stock_apres=product.qty,
+                                description=description or f"Stock défini à {quantity} unités",
+                                created_by=request.user
+                            )
+                        
+                        messages.success(request, f'Stock de "{product.title}" défini à {quantity} unités')
+                
+            except ImportError:
+                # Si l'app aprovision n'est pas disponible, fonctionnement classique
+                if action == 'add':
+                    product.qty += quantity
+                    messages.success(request, f'{quantity} unités ajoutées au stock de "{product.title}"')
+                elif action == 'remove':
+                    if product.qty >= quantity:
+                        product.qty -= quantity
+                        messages.success(request, f'{quantity} unités retirées du stock de "{product.title}"')
+                    else:
+                        messages.error(request, f'Stock insuffisant! Stock actuel: {product.qty}')
+                        return redirect('product:product_list')
+                elif action == 'set':
+                    product.qty = quantity
+                    messages.success(request, f'Stock de "{product.title}" défini à {quantity} unités')
+                
+                product.save()
+            
             return redirect('product:product_list')
     else:
-        form = QuickStockForm()
+        form = QuickStockForm(product=product)
     
-    return render(request, 'product/quick_stock.html', {'form': form, 'product': product})
+    # Vérifier si l'app aprovision est disponible
+    try:
+        from aprovision.models import TypeDepense
+        aprovision_available = True
+    except ImportError:
+        aprovision_available = False
+    
+    context = {
+        'form': form, 
+        'product': product,
+        'aprovision_available': aprovision_available
+    }
+    
+    return render(request, 'product/quick_stock.html', context)
 
 
 @staff_member_required

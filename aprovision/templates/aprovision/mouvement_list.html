@@ -1,0 +1,253 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}Mouvements de Stock{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-arrow-left-right me-2"></i>
+Mouvements de Stock
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">Historique des mouvements de stock</small>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{% url 'aprovision:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>
+    Retour Dashboard
+</a>
+<a href="{% url 'product:product_list' %}" class="btn btn-success btn-sm">
+    <i class="bi bi-plus-circle me-1"></i>
+    Gérer les Stocks
+</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .badge-mouvement {
+        font-size: 0.85em;
+        padding: 0.5em 0.75em;
+    }
+    .filter-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .movement-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content_wrapper %}
+<!-- Filtres -->
+<div class="filter-card">
+    <h6 class="mb-3">
+        <i class="bi bi-funnel me-2"></i>
+        Filtres de Recherche
+    </h6>
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label class="form-label">Produit</label>
+            <select name="produit" class="form-control">
+                <option value="">Tous les produits</option>
+                {% for produit in produits %}
+                    <option value="{{ produit.id }}" {% if request.GET.produit == produit.id|stringformat:"s" %}selected{% endif %}>
+                        {{ produit.title }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Type de mouvement</label>
+            <select name="type_mouvement" class="form-control">
+                <option value="">Tous les types</option>
+                {% for type_code, type_label in types_mouvement %}
+                    <option value="{{ type_code }}" {% if request.GET.type_mouvement == type_code %}selected{% endif %}>
+                        {{ type_label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Date début</label>
+            <input type="date" name="date_debut" class="form-control" value="{{ request.GET.date_debut }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Date fin</label>
+            <input type="date" name="date_fin" class="form-control" value="{{ request.GET.date_fin }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary me-2">
+                <i class="bi bi-search me-1"></i>
+                Filtrer
+            </button>
+            <a href="{% url 'aprovision:mouvement_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle me-1"></i>
+                Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Liste des mouvements -->
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0">
+            <i class="bi bi-list me-2"></i>
+            Liste des Mouvements ({{ mouvements|length }} résultat{{ mouvements|length|pluralize }})
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        {% if mouvements %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Produit</th>
+                            <th>Type</th>
+                            <th class="text-center">Quantité</th>
+                            <th class="text-center">Stock Avant</th>
+                            <th class="text-center">Stock Après</th>
+                            <th class="text-end">Coût</th>
+                            <th>Référence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mouvement in mouvements %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong>{{ mouvement.date_mouvement|date:"d/m/Y" }}</strong>
+                                    <small class="text-muted d-block">{{ mouvement.date_mouvement|date:"H:i" }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="movement-icon bg-light">
+                                        <i class="bi bi-box-seam text-muted"></i>
+                                    </div>
+                                    <div>
+                                        <strong>{{ mouvement.produit.title }}</strong>
+                                        <small class="text-muted d-block">{{ mouvement.produit.category|default:"Sans catégorie" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge badge-mouvement bg-{{ mouvement.get_couleur_badge }}">
+                                    <i class="bi {{ mouvement.get_icone }} me-1"></i>
+                                    {{ mouvement.get_type_mouvement_display }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <strong class="{% if mouvement.quantite > 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {% if mouvement.quantite > 0 %}+{% endif %}{{ mouvement.quantite }}
+                                </strong>
+                            </td>
+                            <td class="text-center">{{ mouvement.stock_avant }}</td>
+                            <td class="text-center">
+                                <strong>{{ mouvement.stock_apres }}</strong>
+                            </td>
+                            <td class="text-end">
+                                {% if mouvement.cout_total %}
+                                    <strong>{{ mouvement.cout_total|floatformat:0 }} FCFA</strong>
+                                    {% if mouvement.prix_achat_unitaire %}
+                                        <small class="text-muted d-block">{{ mouvement.prix_achat_unitaire|floatformat:0 }} FCFA/unité</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if mouvement.reference_commande %}
+                                    <small class="badge bg-primary">
+                                        <i class="bi bi-cart me-1"></i>
+                                        Commande #{{ mouvement.reference_commande.id }}
+                                    </small>
+                                {% elif mouvement.reference_depense %}
+                                    <small class="badge bg-success">
+                                        <i class="bi bi-cash me-1"></i>
+                                        Dépense #{{ mouvement.reference_depense.id }}
+                                    </small>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                                {% if mouvement.description %}
+                                    <small class="text-muted d-block">{{ mouvement.description|truncatechars:30 }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <div class="card-footer">
+                    <nav>
+                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="bi bi-chevron-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                                        <i class="bi bi-chevron-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+                <h4 class="text-muted mt-3">Aucun mouvement trouvé</h4>
+                <p class="text-muted">
+                    {% if request.GET.produit or request.GET.type_mouvement or request.GET.date_debut or request.GET.date_fin %}
+                        Essayez de modifier vos filtres ou 
+                        <a href="{% url 'aprovision:mouvement_list' %}">voir tous les mouvements</a>
+                    {% else %}
+                        Les mouvements de stock apparaîtront ici après les premières ventes ou approvisionnements
+                    {% endif %}
+                </p>
+                <a href="{% url 'product:product_list' %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    Gérer les Stocks
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

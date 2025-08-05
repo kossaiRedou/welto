@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'product',
     'order',
     'client',
+    'aprovision',
 
     'django_tables2',
 ]
@@ -130,4 +131,4 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-CURRENCY = '€'
+CURRENCY = 'GMD'

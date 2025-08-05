@@ -81,6 +81,51 @@ Tableau de Bord
     </div>
 </div>
 
+<!-- Section Dépenses (si disponible) -->
+{% if aprovision_available %}
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card danger">
+            <div class="stats-number">{{ today_expenses|cut:" GMD"|default:"0" }}</div>
+            <div class="stats-label">GMD dépensés aujourd'hui</div>
+            <div class="stats-change">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card warning">
+            <div class="stats-number">{{ month_expenses|cut:" GMD"|default:"0" }}</div>
+            <div class="stats-label">Dépenses du mois</div>
+            <div class="stats-change">
+                <i class="bi bi-calendar-month"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card info">
+            <div class="stats-number">{{ profit_margin|floatformat:1 }}%</div>
+            <div class="stats-label">Marge bénéficiaire</div>
+            <div class="stats-change {% if profit_margin > 0 %}positive{% else %}negative{% endif %}">
+                <i class="bi bi-percent"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="stats-card secondary">
+            <div class="stats-number">{{ gross_profit|cut:" GMD"|default:"0" }}</div>
+            <div class="stats-label">Bénéfice brut estimé</div>
+            <div class="stats-change {% if gross_profit|cut:' GMD'|add:0 > 0 %}positive{% else %}negative{% endif %}">
+                <i class="bi bi-graph-up"></i>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <!-- Dernières Ventes -->
     <div class="col-lg-8 mb-4">
@@ -160,6 +205,35 @@ Tableau de Bord
                 <a href="{% url 'order_list' %}" class="btn btn-sm btn-outline-warning">
                     <i class="bi bi-list-check me-1"></i>
                     Voir les commandes
+                </a>
+            </div>
+        {% endif %}
+        
+        <!-- Mouvements de stock récents (si disponible) -->
+        {% if aprovision_available and recent_stock_movements %}
+            <div class="alert-section mt-3">
+                <h6>
+                    <i class="bi bi-arrow-left-right alert-icon"></i>
+                    Mouvements de Stock Récents
+                </h6>
+                {% for mouvement in recent_stock_movements %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 small">
+                        <div class="d-flex align-items-center">
+                            <i class="bi {{ mouvement.get_icone }} me-2 text-{{ mouvement.get_couleur_badge }}"></i>
+                            <div>
+                                <strong>{{ mouvement.produit.title|truncatechars:20 }}</strong>
+                                <small class="text-muted d-block">{{ mouvement.get_type_mouvement_display }}</small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <strong>{% if mouvement.quantite > 0 %}+{% endif %}{{ mouvement.quantite }}</strong>
+                            <small class="text-muted d-block">{{ mouvement.date_mouvement|date:"d/m H:i" }}</small>
+                        </div>
+                    </div>
+                {% endfor %}
+                <a href="{% url 'aprovision:mouvement_list' %}" class="btn btn-sm btn-outline-info mt-2">
+                    <i class="bi bi-list-ul me-1"></i>
+                    Voir tous les mouvements
                 </a>
             </div>
         {% endif %}

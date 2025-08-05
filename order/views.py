@@ -11,10 +11,17 @@ from django_tables2 import RequestConfig
 from .models import Order, OrderItem, Payment, CURRENCY
 from decimal import Decimal
 from .forms import OrderCreateForm, OrderEditForm
-from product.models import Product, Category
+from product.models import Product, Category, LOW_STOCK_THRESHOLD
 from .tables import ProductTable, OrderItemTable, OrderTable
 
 import datetime
+
+# Import pour les statistiques de dépenses
+try:
+    from aprovision.models import Depense, MouvementStock, TypeMouvement
+    APROVISION_AVAILABLE = True
+except ImportError:
+    APROVISION_AVAILABLE = False
 
 
 @method_decorator(staff_member_required, name='dispatch')
@@ -74,7 +81,7 @@ class HomepageView(ListView):
             .order_by('-total_qty')[:5]
             
         # Stock faible (moins de 5 unités)
-        low_stock = Product.objects.filter(active=True, qty__lt=5).count()
+        low_stock = Product.objects.filter(active=True, qty__lt=LOW_STOCK_THRESHOLD).count()
         
         # Produits en rupture
         out_of_stock = Product.objects.filter(active=True, qty=0).count()
@@ -124,6 +131,59 @@ class HomepageView(ListView):
             'yesterday_date': yesterday.strftime('%d/%m/%Y'),
         })
         
+        # === STATISTIQUES DE DÉPENSES (si l'app aprovision est disponible) ===
+        if APROVISION_AVAILABLE:
+            # Dépenses d'aujourd'hui
+            today_expenses = Depense.objects.filter(date_depense=today).aggregate(
+                total=Sum('montant')
+            )['total'] or 0
+            
+            # Dépenses du mois
+            month_expenses = Depense.objects.filter(
+                date_depense__gte=this_month_start,
+                date_depense__lte=today
+            ).aggregate(total=Sum('montant'))['total'] or 0
+            
+            # Dépenses par type ce mois (top 3)
+            top_expense_types = Depense.objects.filter(
+                date_depense__gte=this_month_start,
+                date_depense__lte=today
+            ).values('type_depense__nom', 'type_depense__couleur').annotate(
+                total=Sum('montant')
+            ).order_by('-total')[:3]
+            
+            # Mouvements de stock récents (5 derniers)
+            recent_stock_movements = MouvementStock.objects.select_related(
+                'produit'
+            ).order_by('-date_mouvement')[:5]
+            
+            # Bénéfice brut approximatif (ventes - dépenses approvisionnement)
+            appro_expenses = Depense.objects.filter(
+                date_depense__gte=this_month_start,
+                date_depense__lte=today,
+                type_depense__nom__icontains='approvisionnement'
+            ).aggregate(total=Sum('montant'))['total'] or 0
+            
+            gross_profit = month_sales - appro_expenses
+            
+            context.update({
+                # Dépenses
+                'today_expenses': f'{today_expenses:,.0f} {CURRENCY}',
+                'month_expenses': f'{month_expenses:,.0f} {CURRENCY}',
+                'top_expense_types': top_expense_types,
+                'recent_stock_movements': recent_stock_movements,
+                
+                # Analyse financière
+                'gross_profit': f'{gross_profit:,.0f} {CURRENCY}',
+                'profit_margin': (gross_profit / month_sales * 100) if month_sales > 0 else 0,
+                'expenses_ratio': (month_expenses / month_sales * 100) if month_sales > 0 else 0,
+                
+                # Indicateurs
+                'aprovision_available': True,
+            })
+        else:
+            context['aprovision_available'] = False
+        
         return context
 
 
@@ -170,6 +230,13 @@ class CreateOrderView(CreateView):
         return reverse('update_order', kwargs={'pk': self.new_object.id})
 
     def form_valid(self, form):
+        # Appliquer la date par défaut si non fournie
+        if not form.cleaned_data.get('date'):
+            form.instance.date = datetime.date.today()
+        
+        # Forcer is_paid à False explicitement
+        form.instance.is_paid = False
+        
         object = form.save()
         
         # Gérer l'association avec le client si fourni
@@ -220,8 +287,9 @@ def delete_order(request, pk):
 @staff_member_required
 def done_order_view(request, pk):
     instance = get_object_or_404(Order, id=pk)
-    instance.is_paid = True
-    instance.save()
+    # Ne plus forcer is_paid = True automatiquement
+    # instance.is_paid = True  # Commenté pour éviter le marquage automatique
+    # instance.save()
     return redirect(reverse('homepage'))
 
 

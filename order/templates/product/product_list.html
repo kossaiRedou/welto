@@ -66,7 +66,7 @@ Liste des Produits
         </div>
 
         <!-- Liste des produits -->
-        <div class="row">
+        <div class="row mt-5">
             {% for product in products %}
                 <div class="col-lg-6 col-xl-4">
                     <div class="product-card {% if not product.active %}product-inactive{% endif %}">
@@ -104,7 +104,9 @@ Liste des Produits
                             <a href="{% url 'product:edit_product' product.pk %}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <a href="{% url 'product:quick_stock' product.pk %}" class="btn btn-sm btn-outline-warning">
+                            <a href="{% url 'product:quick_stock' product.pk %}" 
+                               class="btn btn-sm btn-outline-warning" 
+                               title="Ajuster le stock ({{ product.qty }} unités)">
                                 <i class="bi bi-arrow-up-down"></i>
                             </a>
                             <a href="{% url 'product:toggle_product' product.pk %}" 

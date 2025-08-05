@@ -175,6 +175,8 @@ class ClientListView(ListView):
         context['search_form'] = ClientSearchForm(self.request.GET)
         context['total_clients'] = Client.objects.count()
         context['active_clients'] = Client.objects.filter(is_active=True).count()
+        context['inactive_clients'] = Client.objects.filter(is_active=False).count()
+        
         return context
 
 

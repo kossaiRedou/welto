@@ -10,11 +10,11 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ['title', 'category', 'tag_final_value', 'qty', 'active']
+    list_display = ['title', 'category', 'tag_final_value', 'qty', 'tag_prix_achat', 'active']
     list_select_related = ['category']
     list_filter = ['active', 'category']
     search_fields = ['title']
     list_per_page = 50
-    fields = ['active', 'title', 'category', 'qty', 'value', 'discount_value', 'tag_final_value']
+    fields = ['active', 'title', 'category', 'qty', 'prix_achat', 'value', 'discount_value', 'tag_final_value']
     autocomplete_fields = ['category']
-    readonly_fields = ['tag_final_value']
+    readonly_fields = ['tag_final_value', 'tag_prix_achat']
