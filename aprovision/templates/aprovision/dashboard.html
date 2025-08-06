@@ -1,30 +1,26 @@
 {% extends 'base_with_sidebar.html' %}
 
-{% block title %}Gestion des Approvisionnements{% endblock %}
+{% block title %}Dashboard Approvisionnement{% endblock %}
 
 {% block page_title %}
-<i class="bi bi-boxes me-2"></i>
-Gestion des Approvisionnements & Dépenses
+<i class="bi bi-speedometer2 me-2"></i>
+Dashboard Approvisionnement
 {% endblock %}
 
 {% block page_subtitle %}
-<small class="text-muted">Suivi des stocks, approvisionnements et dépenses</small>
+<small class="text-muted">Gestion des approvisionnements, dépenses et mouvements de stock</small>
 {% endblock %}
 
 {% block header_actions %}
 <div class="btn-group" role="group">
-    <a href="{% url 'aprovision:analytics_dashboard' %}" class="btn btn-info btn-sm">
-        <i class="bi bi-graph-up me-1"></i>
-        Analytics Avancé
-    </a>
     <a href="{% url 'product:product_list' %}" class="btn btn-success btn-sm">
         <i class="bi bi-plus-circle me-1"></i>
         Gérer les Stocks
     </a>
-    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#depenseRapideModal">
+    <a href="{% url 'aprovision:nouvelle_depense' %}" class="btn btn-primary btn-sm">
         <i class="bi bi-cash-coin me-1"></i>
-        Dépense Rapide
-    </button>
+        Nouvelle Dépense
+    </a>
 </div>
 {% endblock %}
 
@@ -397,63 +393,12 @@ Gestion des Approvisionnements & Dépenses
     </div>
 </div>
 
-<!-- Modal Dépense Rapide -->
-<div class="modal fade" id="depenseRapideModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-cash-coin me-2"></i>
-                    Ajouter une Dépense Rapide
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="depenseRapideForm">
-                    <div class="mb-3">
-                        <label class="form-label">Type de dépense *</label>
-                        <select class="form-control" id="typeDepense" required>
-                            <option value="">Sélectionner un type</option>
-                            <!-- Les options seront chargées via AJAX -->
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Description *</label>
-                        <input type="text" class="form-control" id="descriptionDepense" 
-                               placeholder="Ex: Achat fournitures bureau" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Montant (FCFA) *</label>
-                        <input type="number" class="form-control" id="montantDepense" 
-                               placeholder="0" min="0" step="0.01" required>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    Annuler
-                </button>
-                <button type="button" class="btn btn-primary" id="saveDepenseRapide">
-                    <i class="bi bi-check-circle me-1"></i>
-                    Enregistrer
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Charger les types de dépenses pour le modal
-    loadTypesDepense();
-    
-    // Gestionnaire pour le formulaire de dépense rapide
-    $('#saveDepenseRapide').click(function() {
-        saveDepenseRapide();
-    });
-    
     // Gestionnaire pour le formulaire de filtres
     $('form').on('submit', function(e) {
         e.preventDefault();
@@ -470,84 +415,6 @@ $(document).ready(function() {
         }
     });
 });
-
-function loadTypesDepense() {
-    $.ajax({
-        url: '{% url "aprovision:ajax_types_depense" %}',
-        method: 'GET',
-        success: function(response) {
-            const select = $('#typeDepense');
-            select.empty().append('<option value="">Sélectionner un type</option>');
-            
-            response.types.forEach(type => {
-                select.append(`
-                    <option value="${type.id}" data-color="${type.couleur}">
-                        ${type.nom}
-                    </option>
-                `);
-            });
-        },
-        error: function() {
-            console.error('Erreur lors du chargement des types de dépenses');
-            // Fallback avec types de base
-            const select = $('#typeDepense');
-            select.append(`
-                <option value="1">Approvisionnement</option>
-                <option value="2">Matériel</option>
-                <option value="3">Main d'œuvre</option>
-                <option value="4">Transport</option>
-                <option value="10">Autres</option>
-            `);
-        }
-    });
-}
-
-function saveDepenseRapide() {
-    const typeDepense = $('#typeDepense').val();
-    const description = $('#descriptionDepense').val().trim();
-    const montant = parseFloat($('#montantDepense').val());
-    
-    if (!typeDepense || !description || !montant || montant <= 0) {
-        alert('Veuillez remplir tous les champs obligatoires');
-        return;
-    }
-    
-    const btn = $('#saveDepenseRapide');
-    const originalText = btn.html();
-    btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-1"></i>Enregistrement...');
-    
-    $.ajax({
-        url: '{% url "aprovision:ajax_depense_rapide" %}',
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val() || '{{ csrf_token }}'
-        },
-        data: JSON.stringify({
-            type_depense: typeDepense,
-            description: description,
-            montant: montant
-        }),
-        contentType: 'application/json',
-        success: function(response) {
-            if (response.success) {
-                alert(response.message);
-                $('#depenseRapideModal').modal('hide');
-                $('#depenseRapideForm')[0].reset();
-                
-                // Rafraîchir les statistiques sans recharger la page
-                refreshDashboardStats();
-            } else {
-                alert('Erreur: ' + response.error);
-            }
-        },
-        error: function() {
-            alert('Erreur de connexion. Veuillez réessayer.');
-        },
-        complete: function() {
-            btn.prop('disabled', false).html(originalText);
-        }
-    });
-}
 
 function refreshDashboardStats() {
     const dateDebut = $('input[name="date_debut"]').val();

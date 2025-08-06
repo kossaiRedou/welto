@@ -138,7 +138,7 @@ Dashboard Analytique
         <div class="card analytics-card border-left-danger">
             <div class="card-body text-center">
                 <div class="stat-number text-danger" id="total-depenses">
-                    {{ total_depenses|floatformat:0 }}
+                    {{ total_depenses|floatformat:2 }}
                 </div>
                 <div class="stat-label">Total Dépenses (GMD)</div>
                 <small class="text-muted">Période sélectionnée</small>
@@ -151,7 +151,7 @@ Dashboard Analytique
         <div class="card analytics-card border-left-success">
             <div class="card-body text-center">
                 <div class="stat-number text-success" id="total-ventes-argent">
-                    {{ total_ventes_argent|floatformat:0 }}
+                    {{ total_ventes_argent|floatformat:2 }}
                 </div>
                 <div class="stat-label">Total Ventes (GMD)</div>
                 <small class="text-muted">Commandes payées</small>
@@ -164,7 +164,7 @@ Dashboard Analytique
         <div class="card analytics-card border-left-primary">
             <div class="card-body text-center">
                 <div class="stat-number {% if marge_beneficiaire >= 0 %}text-primary{% else %}text-danger{% endif %}" id="marge-beneficiaire">
-                    {{ marge_beneficiaire|floatformat:0 }}
+                    {{ marge_beneficiaire|floatformat:2 }}
                 </div>
                 <div class="stat-label">Marge Bénéficiaire (GMD)</div>
                 <small class="text-muted">Revenus - Dépenses</small>
@@ -203,7 +203,7 @@ Dashboard Analytique
         <div class="card analytics-card border-left-secondary">
             <div class="card-body text-center">
                 <div class="stat-number text-secondary" id="total-approvisionnements">
-                    {{ total_approvisionnements|floatformat:0 }}
+                    {{ total_approvisionnements|floatformat:2 }}
                 </div>
                 <div class="stat-label">Coût Approvisionnements (GMD)</div>
                 <small class="text-muted">Période sélectionnée</small>
@@ -214,12 +214,25 @@ Dashboard Analytique
 
 <!-- Deuxième ligne de statistiques -->
 <div class="row mb-4">
+    <!-- Bénéfice -->
+    <div class="col-md-3">
+        <div class="card analytics-card border-left-success">
+            <div class="card-body text-center">
+                <div class="stat-number {% if benefice >= 0 %}text-success{% else %}text-danger{% endif %}" id="benefice">
+                    {{ benefice|floatformat:2 }}
+                </div>
+                <div class="stat-label">Bénéfice (GMD)</div>
+                <small class="text-muted">Ventes - Coût des Produits Vendus</small>
+            </div>
+        </div>
+    </div>
+    
     <!-- Reste à payer -->
     <div class="col-md-3">
         <div class="card analytics-card border-left-dark">
             <div class="card-body text-center">
                 <div class="stat-number text-dark" id="reste-a-payer">
-                    {{ reste_a_payer|floatformat:0 }}
+                    {{ reste_a_payer|floatformat:2 }}
                 </div>
                 <div class="stat-label">Reste à Payer (GMD)</div>
                 <small class="text-muted">Commandes impayées</small>
@@ -268,7 +281,7 @@ Dashboard Analytique
                             </div>
                         </div>
                         <div class="text-end">
-                            <strong>{{ type.total|floatformat:0 }} GMD</strong>
+                                                         <strong>{{ type.total|floatformat:2 }} GMD</strong>
                             <div class="progress progress-custom mt-1" style="width: 80px;">
                                 <div class="progress-bar" style="width: {{ type.pourcentage|floatformat:1 }}%; background-color: {{ type.type_depense__couleur }};"></div>
                             </div>
@@ -278,6 +291,78 @@ Dashboard Analytique
                     {% endfor %}
                 {% else %}
                     <p class="text-muted text-center py-3">Aucune dépense sur cette période</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Évolution des ventes -->
+<div class="row mb-4">
+    <!-- Évolution des ventes -->
+    <div class="col-md-8">
+        <div class="card analytics-card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Évolution des Ventes
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="ventesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistiques des ventes -->
+    <div class="col-md-4">
+        <div class="card analytics-card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-bar-chart me-2"></i>
+                    Statistiques des Ventes
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <strong>Total Ventes</strong>
+                        <small class="text-muted d-block">Montant total</small>
+                    </div>
+                    <div class="text-end">
+                                                 <strong>{{ total_ventes_argent|floatformat:2 }} GMD</strong>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <strong>Nombre Commandes</strong>
+                        <small class="text-muted d-block">Commandes effectuées</small>
+                    </div>
+                    <div class="text-end">
+                        <strong>{{ total_ventes_nombre_commandes }}</strong>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <strong>Produits Vendus</strong>
+                        <small class="text-muted d-block">Quantité totale</small>
+                    </div>
+                    <div class="text-end">
+                        <strong>{{ total_ventes_nombre_produits }}</strong>
+                    </div>
+                </div>
+                {% if total_ventes_nombre_commandes > 0 %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <strong>Panier Moyen</strong>
+                        <small class="text-muted d-block">Par commande</small>
+                    </div>
+                    <div class="text-end">
+                                                 <strong>{{ panier_moyen|floatformat:2 }} GMD</strong>
+                    </div>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -388,7 +473,7 @@ Dashboard Analytique
                                     <span class="badge bg-info">{{ stat.stock_total|default:0 }}</span>
                                 </td>
                                 <td>
-                                    <span class="badge bg-success">{{ stat.valeur_stock|default:0|floatformat:0 }} FCFA</span>
+                                                                         <span class="badge bg-success">{{ stat.valeur_stock|default:0|floatformat:2 }} GMD</span>
                                 </td>
                                 <td>
                                     <span class="badge bg-success">{{ stat.mouvements_entree }}</span>
@@ -455,6 +540,7 @@ Dashboard Analytique
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 let depensesChart;
+let ventesChart;
 
 // Initialiser le graphique des dépenses
 function initDepensesChart() {
@@ -499,6 +585,49 @@ function initDepensesChart() {
     depensesChart = new Chart(ctx, config);
 }
 
+// Initialiser le graphique des ventes
+function initVentesChart() {
+    const ctx = document.getElementById('ventesChart').getContext('2d');
+    
+    const data = {
+        labels: {{ ventes_par_jour|safe }}.map(item => new Date(item.date).toLocaleDateString()),
+        datasets: [{
+            label: 'Ventes (GMD)',
+            data: {{ ventes_par_jour|safe }}.map(item => item.total),
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    };
+    
+    const config = {
+        type: 'line',
+        data: data,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + ' GMD';
+                        }
+                    }
+                }
+            }
+        }
+    };
+    
+    ventesChart = new Chart(ctx, config);
+}
+
 // Mettre à jour les analytics via AJAX
 function updateAnalytics() {
     const form = document.getElementById('analytics-form');
@@ -510,31 +639,40 @@ function updateAnalytics() {
     fetch('{% url "aprovision:ajax_analytics_data" %}?' + new URLSearchParams(formData))
         .then(response => response.json())
         .then(data => {
-            // Mettre à jour les statistiques
-            document.getElementById('total-depenses').textContent = data.total_depenses.toLocaleString();
-            document.getElementById('total-approvisionnements').textContent = data.total_approvisionnements.toLocaleString();
-            document.getElementById('total-ventes-argent').textContent = data.total_ventes_argent.toLocaleString();
+                         // Mettre à jour les statistiques
+             document.getElementById('total-depenses').textContent = data.total_depenses.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+             document.getElementById('total-approvisionnements').textContent = data.total_approvisionnements.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+             document.getElementById('total-ventes-argent').textContent = data.total_ventes_argent.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             document.getElementById('total-ventes-nombre-commandes').textContent = data.total_ventes_nombre_commandes;
             document.getElementById('total-ventes-nombre-produits').textContent = data.total_ventes_nombre_produits;
-            document.getElementById('reste-a-payer').textContent = data.reste_a_payer.toLocaleString();
+                         document.getElementById('reste-a-payer').textContent = data.reste_a_payer.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             
-            // Mettre à jour la marge bénéficiaire avec couleur conditionnelle
-            const margeElement = document.getElementById('marge-beneficiaire');
-            margeElement.textContent = data.marge_beneficiaire.toLocaleString();
+                         // Mettre à jour le bénéfice avec couleur conditionnelle
+             const beneficeElement = document.getElementById('benefice');
+             beneficeElement.textContent = data.benefice.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            if (data.benefice >= 0) {
+                beneficeElement.className = 'stat-number text-success';
+            } else {
+                beneficeElement.className = 'stat-number text-danger';
+            }
+            
+                         // Mettre à jour la marge bénéficiaire avec couleur conditionnelle
+             const margeElement = document.getElementById('marge-beneficiaire');
+             margeElement.textContent = data.marge_beneficiaire.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             if (data.marge_beneficiaire >= 0) {
                 margeElement.className = 'stat-number text-primary';
             } else {
                 margeElement.className = 'stat-number text-danger';
             }
             
-            // Mettre à jour le graphique
+            // Mettre à jour le graphique des dépenses
             if (depensesChart) {
                 depensesChart.destroy();
             }
             
-            // Recréer le graphique avec les nouvelles données
-            const ctx = document.getElementById('depensesChart').getContext('2d');
-            const chartData = {
+            // Recréer le graphique des dépenses avec les nouvelles données
+            const ctxDepenses = document.getElementById('depensesChart').getContext('2d');
+            const chartDataDepenses = {
                 labels: data.depenses_par_jour.map(item => new Date(item.date_depense).toLocaleDateString()),
                 datasets: [{
                     label: 'Dépenses (GMD)',
@@ -546,9 +684,52 @@ function updateAnalytics() {
                 }]
             };
             
-            depensesChart = new Chart(ctx, {
+            depensesChart = new Chart(ctxDepenses, {
                 type: 'line',
-                data: chartData,
+                data: chartDataDepenses,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString() + ' GMD';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Mettre à jour le graphique des ventes
+            if (ventesChart) {
+                ventesChart.destroy();
+            }
+            
+            // Recréer le graphique des ventes avec les nouvelles données
+            const ctxVentes = document.getElementById('ventesChart').getContext('2d');
+            const chartDataVentes = {
+                labels: data.ventes_par_jour.map(item => new Date(item.date).toLocaleDateString()),
+                datasets: [{
+                    label: 'Ventes (GMD)',
+                    data: data.ventes_par_jour.map(item => item.total),
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            };
+            
+            ventesChart = new Chart(ctxVentes, {
+                type: 'line',
+                data: chartDataVentes,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -610,6 +791,7 @@ function exportData() {
 // Initialiser le graphique au chargement
 document.addEventListener('DOMContentLoaded', function() {
     initDepensesChart();
+    initVentesChart();
 });
 </script>
 {% endblock %} 

@@ -3,23 +3,29 @@
 {% block title %}Liste des Dépenses{% endblock %}
 
 {% block page_title %}
-<i class="bi bi-cash-stack me-2"></i>
+<i class="bi bi-list me-2"></i>
 Liste des Dépenses
 {% endblock %}
 
 {% block page_subtitle %}
-<small class="text-muted">Suivi de toutes les dépenses</small>
+<small class="text-muted">Gestion et suivi de toutes les dépenses</small>
 {% endblock %}
 
 {% block header_actions %}
-<a href="{% url 'aprovision:dashboard' %}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>
-    Retour Dashboard
-</a>
-<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#depenseRapideModal">
-    <i class="bi bi-plus-circle me-1"></i>
-    Nouvelle Dépense
-</button>
+<div class="btn-group" role="group">
+    <a href="{% url 'aprovision:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>
+        Retour Dashboard
+    </a>
+    <a href="{% url 'aprovision:nouvelle_depense' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>
+        Nouvelle Dépense
+    </a>
+    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#newTypeModal">
+        <i class="bi bi-tags me-1"></i>
+        Nouveau Type
+    </button>
+</div>
 {% endblock %}
 
 {% block extra_css %}
@@ -45,6 +51,13 @@ Liste des Dépenses
         border-radius: 15px;
         padding: 20px;
         margin-bottom: 20px;
+    }
+    .color-picker {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
     }
 </style>
 {% endblock %}
@@ -72,7 +85,7 @@ Liste des Dépenses
     <form method="get" class="row g-3">
         <div class="col-md-4">
             <label class="form-label">Type de dépense</label>
-            <select name="type_depense" class="form-control">
+            <select name="type_depense" class="form-control" id="filter-type-depense">
                 <option value="">Tous les types</option>
                 {% for type in types_depense %}
                     <option value="{{ type.id }}" {% if request.GET.type_depense == type.id|stringformat:"s" %}selected{% endif %}>
@@ -119,66 +132,42 @@ Liste des Dépenses
                             <th>Date</th>
                             <th>Type</th>
                             <th>Description</th>
-                            <th>Fournisseur</th>
-                            <th class="text-end">Montant</th>
-                            <th>Référence</th>
-                            <th>Créé par</th>
+                            <th>Montant</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for depense in depenses %}
                         <tr>
                             <td>
-                                <div>
-                                    <strong>{{ depense.date_depense|date:"d/m/Y" }}</strong>
-                                    <small class="text-muted d-block">{{ depense.created_at|date:"H:i" }}</small>
-                                </div>
+                                <strong>{{ depense.date_depense|date:"d/m/Y" }}</strong>
                             </td>
                             <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="expense-icon" style="background-color: {{ depense.type_depense.couleur }}20; color: {{ depense.type_depense.couleur }};">
-                                        <i class="bi bi-tag-fill"></i>
-                                    </div>
-                                    <div>
-                                        <strong>{{ depense.type_depense.nom }}</strong>
-                                        {% if depense.type_depense.description %}
-                                            <small class="text-muted d-block">{{ depense.type_depense.description|truncatechars:30 }}</small>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                                <span class="badge" style="background-color: {{ depense.type_depense.couleur }}; color: white;">
+                                    {{ depense.type_depense.nom }}
+                                </span>
                             </td>
                             <td>
                                 <strong>{{ depense.description }}</strong>
-                                {% if depense.notes %}
-                                    <small class="text-muted d-block">{{ depense.notes|truncatechars:50 }}</small>
+                                {% if depense.fournisseur %}
+                                    <br><small class="text-muted">Fournisseur: {{ depense.fournisseur }}</small>
+                                {% endif %}
+                                {% if depense.reference %}
+                                    <br><small class="text-muted">Réf: {{ depense.reference }}</small>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if depense.fournisseur %}
-                                    <span class="badge bg-info">{{ depense.fournisseur }}</span>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="text-end">
                                 <strong class="text-danger">{{ depense.montant|floatformat:0 }} FCFA</strong>
                             </td>
                             <td>
-                                {% if depense.reference %}
-                                    <small class="badge bg-secondary">{{ depense.reference }}</small>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if depense.created_by %}
-                                    <small class="text-muted">
-                                        <i class="bi bi-person me-1"></i>
-                                        {{ depense.created_by.username }}
-                                    </small>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary" title="Voir détails">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -228,66 +217,46 @@ Liste des Dépenses
             {% endif %}
         {% else %}
             <div class="text-center py-5">
-                <i class="bi bi-cash-stack text-muted" style="font-size: 4rem;"></i>
-                <h4 class="text-muted mt-3">Aucune dépense trouvée</h4>
+                <i class="bi bi-inbox" style="font-size: 3rem; color: #6c757d; opacity: 0.5;"></i>
+                <h5 class="text-muted mt-3">Aucune dépense trouvée</h5>
                 <p class="text-muted">
-                    {% if request.GET.type_depense or request.GET.date_debut or request.GET.date_fin %}
-                        Essayez de modifier vos filtres ou 
-                        <a href="{% url 'aprovision:depense_list' %}">voir toutes les dépenses</a>
+                    {% if request.GET %}
+                        Aucune dépense ne correspond aux critères de recherche.
                     {% else %}
-                        Les dépenses apparaîtront ici après les premiers enregistrements
+                        Commencez par ajouter votre première dépense.
                     {% endif %}
                 </p>
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#depenseRapideModal">
+                <a href="{% url 'aprovision:nouvelle_depense' %}" class="btn btn-primary">
                     <i class="bi bi-plus-circle me-1"></i>
                     Première Dépense
-                </button>
+                </a>
             </div>
         {% endif %}
     </div>
 </div>
 
-<!-- Modal Dépense Rapide -->
-<div class="modal fade" id="depenseRapideModal" tabindex="-1">
+<!-- Modal pour créer un nouveau type de dépense -->
+<div class="modal fade" id="newTypeModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="bi bi-cash-coin me-2"></i>
-                    Ajouter une Dépense
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Nouveau Type de Dépense
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <form id="depenseRapideForm">
+                <form id="newTypeForm">
                     <div class="mb-3">
-                        <label class="form-label">Type de dépense *</label>
-                        <select class="form-control" id="typeDepense" required>
-                            <option value="">Sélectionner un type</option>
-                            {% for type in types_depense %}
-                                <option value="{{ type.id }}">{{ type.nom }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="form-label">Nom du type *</label>
+                        <input type="text" class="form-control" id="newTypeName" 
+                               placeholder="Ex: Transport, Fournitures, Main d'œuvre..." required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Description *</label>
-                        <input type="text" class="form-control" id="descriptionDepense" 
-                               placeholder="Ex: Achat fournitures bureau" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Montant (FCFA) *</label>
-                        <input type="number" class="form-control" id="montantDepense" 
-                               placeholder="0" min="0" step="0.01" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Fournisseur (optionnel)</label>
-                        <input type="text" class="form-control" id="fournisseurDepense" 
-                               placeholder="Nom du fournisseur">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Référence (optionnel)</label>
-                        <input type="text" class="form-control" id="referenceDepense" 
-                               placeholder="N° facture ou référence">
+                        <label class="form-label">Couleur</label>
+                        <input type="color" class="color-picker" id="newTypeColor" value="#667eea">
+                        <small class="text-muted">Choisissez une couleur pour identifier ce type</small>
                     </div>
                 </form>
             </div>
@@ -295,9 +264,9 @@ Liste des Dépenses
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     Annuler
                 </button>
-                <button type="button" class="btn btn-primary" id="saveDepenseRapide">
+                <button type="button" class="btn btn-primary" id="saveNewType">
                     <i class="bi bi-check-circle me-1"></i>
-                    Enregistrer
+                    Créer
                 </button>
             </div>
         </div>
@@ -308,59 +277,79 @@ Liste des Dépenses
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Gestionnaire pour le formulaire de dépense rapide
-    $('#saveDepenseRapide').click(function() {
-        saveDepenseRapide();
-    });
-});
-
-function saveDepenseRapide() {
-    const typeDepense = $('#typeDepense').val();
-    const description = $('#descriptionDepense').val().trim();
-    const montant = parseFloat($('#montantDepense').val());
-    const fournisseur = $('#fournisseurDepense').val().trim();
-    const reference = $('#referenceDepense').val().trim();
-    
-    if (!typeDepense || !description || !montant || montant <= 0) {
-        alert('Veuillez remplir tous les champs obligatoires');
-        return;
-    }
-    
-    const btn = $('#saveDepenseRapide');
-    const originalText = btn.html();
-    btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-1"></i>Enregistrement...');
-    
-    $.ajax({
-        url: '{% url "aprovision:ajax_depense_rapide" %}',
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val() || '{{ csrf_token }}'
-        },
-        data: JSON.stringify({
-            type_depense: typeDepense,
-            description: description,
-            montant: montant,
-            fournisseur: fournisseur,
-            reference: reference
-        }),
-        contentType: 'application/json',
-        success: function(response) {
-            if (response.success) {
-                alert(response.message);
-                $('#depenseRapideModal').modal('hide');
-                $('#depenseRapideForm')[0].reset();
-                location.reload(); // Recharger pour voir la nouvelle dépense
-            } else {
-                alert('Erreur: ' + response.error);
-            }
-        },
-        error: function() {
-            alert('Erreur de connexion. Veuillez réessayer.');
-        },
-        complete: function() {
-            btn.prop('disabled', false).html(originalText);
+    // Créer un nouveau type de dépense
+    $('#saveNewType').click(function() {
+        const name = $('#newTypeName').val().trim();
+        const color = $('#newTypeColor').val();
+        
+        if (!name) {
+            alert('Veuillez saisir un nom pour le type de dépense.');
+            return;
         }
+        
+        const btn = $(this);
+        const originalText = btn.html();
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-1"></i>Création...');
+        
+        $.ajax({
+            url: '{% url "aprovision:ajax_create_type_depense" %}',
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            data: JSON.stringify({
+                nom: name,
+                couleur: color
+            }),
+            contentType: 'application/json',
+            success: function(response) {
+                if (response.success) {
+                    // Ajouter le nouveau type aux listes de filtres
+                    const filterSelect = $('#filter-type-depense');
+                    filterSelect.append(`
+                        <option value="${response.type.id}">
+                            ${response.type.nom}
+                        </option>
+                    `);
+                    
+                    // Fermer le modal
+                    $('#newTypeModal').modal('hide');
+                    
+                    // Réinitialiser le formulaire
+                    $('#newTypeName').val('');
+                    $('#newTypeColor').val('#667eea');
+                    
+                    // Message de succès
+                    showAlert('success', response.message);
+                } else {
+                    showAlert('danger', response.error);
+                }
+            },
+            error: function() {
+                showAlert('danger', 'Erreur de connexion. Veuillez réessayer.');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html(originalText);
+            }
+        });
     });
-}
+    
+    // Fonction d'alerte
+    function showAlert(type, message) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        $('body').append(alertHtml);
+        
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+    }
+});
 </script>
 {% endblock %}

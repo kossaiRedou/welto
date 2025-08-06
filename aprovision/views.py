@@ -4,12 +4,13 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Sum, Q, Count
 from django.utils.decorators import method_decorator
-from django.views.generic import ListView
+from django.views.generic import ListView, CreateView
 from django.core.paginator import Paginator
 from django.utils import timezone
 from datetime import datetime, timedelta
 import json
 from django.db import models
+from django.urls import reverse_lazy
 
 from .models import (
     TypeDepense, Depense, MouvementStock, TypeMouvement, 
@@ -170,6 +171,53 @@ def approvisionnement_view(request):
     }
     
     return render(request, 'aprovision/approvisionnement_form.html', context)
+
+
+@staff_member_required
+def nouvelle_depense_view(request):
+    """Page dédiée pour créer une nouvelle dépense"""
+    
+    if request.method == 'POST':
+        type_depense_id = request.POST.get('type_depense')
+        description = request.POST.get('description')
+        montant = request.POST.get('montant')
+        
+        if not all([type_depense_id, description, montant]):
+            messages.error(request, 'Veuillez remplir tous les champs obligatoires.')
+            return redirect('aprovision:nouvelle_depense')
+        
+        try:
+            type_depense = TypeDepense.objects.get(id=type_depense_id)
+            montant = float(montant)
+            
+            if montant <= 0:
+                messages.error(request, 'Le montant doit être supérieur à 0.')
+                return redirect('aprovision:nouvelle_depense')
+            
+            # Créer la dépense
+            depense = Depense.objects.create(
+                type_depense=type_depense,
+                description=description,
+                montant=montant,
+                date_depense=timezone.now().date()
+            )
+            
+            messages.success(request, f'Dépense "{description}" de {montant} GMD enregistrée avec succès.')
+            return redirect('aprovision:dashboard')
+            
+        except (TypeDepense.DoesNotExist, ValueError):
+            messages.error(request, 'Données invalides. Veuillez réessayer.')
+            return redirect('aprovision:nouvelle_depense')
+    
+    # GET request - afficher le formulaire
+    types_depense = TypeDepense.objects.all()
+    
+    context = {
+        'types_depense': types_depense,
+        'today': timezone.now().date(),
+    }
+    
+    return render(request, 'aprovision/nouvelle_depense.html', context)
 
 
 @staff_member_required
@@ -375,12 +423,12 @@ def analytics_dashboard(request):
     ).aggregate(total=Sum('cout_total'))['total'] or 0
     
     # === STATISTIQUES DE VENTE ===
-    # Commandes de la période
+    # Commandes de la période (avec des produits vendus)
     commandes_periode = Order.objects.filter(
         date__gte=date_debut,
         date__lte=date_fin,
-        is_paid=True  # Seulement les commandes payées
-    )
+        order_items__isnull=False  # Commandes avec des produits
+    ).distinct()
     
     # Filtrer par catégorie si sélectionnée
     if categorie:
@@ -389,7 +437,7 @@ def analytics_dashboard(request):
             order_items__product__category=categorie
         ).distinct()
     
-    # Total des ventes en argent
+    # Total des ventes en argent (toutes les commandes avec des produits)
     total_ventes_argent = commandes_periode.aggregate(
         total=Sum('final_value')
     )['total'] or 0
@@ -404,8 +452,23 @@ def analytics_dashboard(request):
         total=Sum('qty')
     )['total'] or 0
     
+    # Panier moyen (total ventes / nombre commandes)
+    panier_moyen = 0
+    if total_ventes_nombre_commandes > 0:
+        panier_moyen = total_ventes_argent / total_ventes_nombre_commandes
+    
     # Marge bénéficiaire (revenus - dépenses)
     marge_beneficiaire = total_ventes_argent - total_depenses
+    
+    # === BÉNÉFICE (VENTES - COÛT DES PRODUITS VENDUS) ===
+    # Calculer le coût total des produits vendus (basé sur prix_achat)
+    cout_produits_vendus = OrderItem.objects.filter(
+        order__in=commandes_periode
+    ).aggregate(
+        total=Sum(models.F('qty') * models.F('product__prix_achat'))
+    )['total'] or 0
+    
+    benefice = total_ventes_argent - cout_produits_vendus
     
     # === RESTE À PAYER (DETTES) ===
     # Commandes non payées de la période
@@ -421,10 +484,11 @@ def analytics_dashboard(request):
             order_items__product__category=categorie
         ).distinct()
     
-    # Total des dettes
-    reste_a_payer = commandes_impayees.aggregate(
-        total=Sum('final_value')
-    )['total'] or 0
+    # Total des dettes (en tenant compte des paiements partiels)
+    reste_a_payer = sum(
+        commande.remaining_amount() 
+        for commande in commandes_impayees
+    )
     
     # Mouvements par type
     mouvements_par_type = mouvements_qs.values('type_mouvement').annotate(
@@ -460,6 +524,12 @@ def analytics_dashboard(request):
     depenses_par_jour = depenses_qs.values('date_depense').annotate(
         total=Sum('montant')
     ).order_by('date_depense')
+    
+    # Ventes par jour
+    ventes_par_jour = commandes_periode.values('date').annotate(
+        total=Sum('final_value'),
+        nombre_commandes=Count('id')
+    ).order_by('date')
     
     # Mouvements par jour
     mouvements_par_jour = mouvements_qs.values('date_mouvement__date').annotate(
@@ -504,11 +574,14 @@ def analytics_dashboard(request):
         'total_ventes_argent': total_ventes_argent,
         'total_ventes_nombre_commandes': total_ventes_nombre_commandes,
         'total_ventes_nombre_produits': total_ventes_nombre_produits,
+        'panier_moyen': panier_moyen,
         'marge_beneficiaire': marge_beneficiaire,
+        'benefice': benefice,
         'reste_a_payer': reste_a_payer,
         'mouvements_par_type': mouvements_par_type,
         'stats_par_categorie': stats_par_categorie,
         'depenses_par_jour': list(depenses_par_jour),
+        'ventes_par_jour': list(ventes_par_jour),
         'mouvements_par_jour': list(mouvements_par_jour),
         'top_produits_mouvements': top_produits_mouvements,
         'produits_stock_faible': produits_stock_faible,
@@ -561,12 +634,12 @@ def ajax_analytics_data(request):
     ).aggregate(total=Sum('cout_total'))['total'] or 0
     
     # === STATISTIQUES DE VENTE ===
-    # Commandes de la période
+    # Commandes de la période (avec des produits vendus)
     commandes_periode = Order.objects.filter(
         date__gte=date_debut,
         date__lte=date_fin,
-        is_paid=True  # Seulement les commandes payées
-    )
+        order_items__isnull=False  # Commandes avec des produits
+    ).distinct()
     
     # Filtrer par catégorie si sélectionnée
     if categorie_id:
@@ -574,7 +647,7 @@ def ajax_analytics_data(request):
             order_items__product__category_id=categorie_id
         ).distinct()
     
-    # Total des ventes en argent
+    # Total des ventes en argent (toutes les commandes avec des produits)
     total_ventes_argent = commandes_periode.aggregate(
         total=Sum('final_value')
     )['total'] or 0
@@ -589,8 +662,23 @@ def ajax_analytics_data(request):
         total=Sum('qty')
     )['total'] or 0
     
+    # Panier moyen (total ventes / nombre commandes)
+    panier_moyen = 0
+    if total_ventes_nombre_commandes > 0:
+        panier_moyen = total_ventes_argent / total_ventes_nombre_commandes
+    
     # Marge bénéficiaire (revenus - dépenses)
     marge_beneficiaire = total_ventes_argent - total_depenses
+    
+    # === BÉNÉFICE (VENTES - COÛT DES PRODUITS VENDUS) ===
+    # Calculer le coût total des produits vendus (basé sur prix_achat)
+    cout_produits_vendus = OrderItem.objects.filter(
+        order__in=commandes_periode
+    ).aggregate(
+        total=Sum(models.F('qty') * models.F('product__prix_achat'))
+    )['total'] or 0
+    
+    benefice = total_ventes_argent - cout_produits_vendus
     
     # === RESTE À PAYER (DETTES) ===
     # Commandes non payées de la période
@@ -606,15 +694,22 @@ def ajax_analytics_data(request):
             order_items__product__category_id=categorie_id
         ).distinct()
     
-    # Total des dettes
-    reste_a_payer = commandes_impayees.aggregate(
-        total=Sum('final_value')
-    )['total'] or 0
+    # Total des dettes (en tenant compte des paiements partiels)
+    reste_a_payer = sum(
+        commande.remaining_amount() 
+        for commande in commandes_impayees
+    )
     
     # Dépenses par jour pour le graphique
     depenses_par_jour = list(depenses_qs.values('date_depense').annotate(
         total=Sum('montant')
     ).order_by('date_depense'))
+    
+    # Ventes par jour pour le graphique
+    ventes_par_jour = list(commandes_periode.values('date').annotate(
+        total=Sum('final_value'),
+        nombre_commandes=Count('id')
+    ).order_by('date'))
     
     # Mouvements par jour pour le graphique
     mouvements_par_jour = list(mouvements_qs.values('date_mouvement__date').annotate(
@@ -628,10 +723,68 @@ def ajax_analytics_data(request):
         'total_ventes_argent': total_ventes_argent,
         'total_ventes_nombre_commandes': total_ventes_nombre_commandes,
         'total_ventes_nombre_produits': total_ventes_nombre_produits,
+        'panier_moyen': panier_moyen,
         'marge_beneficiaire': marge_beneficiaire,
+        'benefice': benefice,
         'reste_a_payer': reste_a_payer,
         'depenses_par_jour': depenses_par_jour,
+        'ventes_par_jour': ventes_par_jour,
         'mouvements_par_jour': mouvements_par_jour,
+    })
+
+
+@staff_member_required
+def ajax_create_type_depense(request):
+    """Vue AJAX pour créer un nouveau type de dépense"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            nom = data.get('nom', '').strip()
+            couleur = data.get('couleur', '#667eea')
+            
+            if not nom:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Le nom du type est obligatoire.'
+                })
+            
+            # Vérifier si le type existe déjà
+            if TypeDepense.objects.filter(nom__iexact=nom).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Un type de dépense "{nom}" existe déjà.'
+                })
+            
+            # Créer le nouveau type
+            nouveau_type = TypeDepense.objects.create(
+                nom=nom,
+                couleur=couleur
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Type "{nom}" créé avec succès.',
+                'type': {
+                    'id': nouveau_type.id,
+                    'nom': nouveau_type.nom,
+                    'couleur': nouveau_type.couleur
+                }
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Données invalides.'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Erreur lors de la création: {str(e)}'
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Méthode non autorisée.'
     })
 
 

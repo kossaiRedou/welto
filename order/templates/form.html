@@ -7,200 +7,331 @@
 Nouvelle vente
 {% endblock %}
 
+{% block page_subtitle %}
+<small class="text-muted">Créer une nouvelle commande avec sélection de client</small>
+{% endblock %}
 
+{% block extra_css %}
+<style>
+    .order-form-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .order-form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(0,0,0,0.12);
+    }
+    
+    .section-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 15px 20px;
+        margin-bottom: 25px;
+    }
+    
+    .section-header h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .client-search-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .client-search-card .form-label {
+        color: white;
+        font-weight: 600;
+    }
+    
+    .client-search-card .input-group-text {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        color: white;
+    }
+    
+    .client-search-card .form-control {
+        border: 1px solid rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+    
+    .client-search-card .form-control::placeholder {
+        color: rgba(255,255,255,0.7);
+    }
+    
+    .client-search-card .form-control:focus {
+        background: rgba(255,255,255,0.15);
+        border-color: rgba(255,255,255,0.5);
+        color: white;
+        box-shadow: 0 0 0 0.2rem rgba(255,255,255,0.25);
+    }
+    
+    .selected-client {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    
+    .order-details-card {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .order-details-card .form-label {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .info-alert {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 15px;
+    }
+    
+    .btn-create-order {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-create-order:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-today {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        border: none;
+        border-radius: 20px;
+        padding: 8px 20px;
+        font-size: 0.9rem;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-today:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 10px rgba(79, 172, 254, 0.4);
+    }
+    
+    .list-group-item {
+        border: none;
+        border-radius: 8px;
+        margin-bottom: 5px;
+        transition: all 0.3s ease;
+    }
+    
+    .list-group-item:hover {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transform: translateX(5px);
+    }
+    
+    .form-check-input:checked {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+    
+    .new-client-form {
+        background: rgba(255,255,255,0.1);
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 15px;
+    }
+    
+    .alert {
+        border-radius: 10px;
+        border: none;
+    }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+    }
+    
+    .breadcrumb-item a {
+        color: #667eea;
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item.active {
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-    <!-- ============================================================== -->
-        <!-- Page wrapper  -->
-        <!-- ============================================================== -->
-        <div class="page-wrapper">
-            <!-- ============================================================== -->
-            <!-- Bread crumb and right sidebar toggle -->
-            <!-- ============================================================== -->
-            <div class="page-breadcrumb">
-                <div class="row">
-                    <div class="col-12 d-flex no-block align-items-center">
-                        <h4 class="page-title">{{ form_title }}</h4>
-                        <div class="ml-auto text-right">
-                            <nav aria-label="breadcrumb">
-                                <ol class="breadcrumb">
-                                    <li class="breadcrumb-item"><a href="{% url 'homepage' %}">Home</a></li>
-                                    <li class="breadcrumb-item active" aria-current="page">{{ form_title }}</li>
-                                </ol>
-                            </nav>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card order-form-card">
+                <form method="post" class="form-horizontal" id="order-form">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <!-- Section Client -->
+                        <div class="section-header">
+                            <h5>
+                                <i class="bi bi-person-circle me-2"></i>
+                                Sélection du Client
+                            </h5>
                         </div>
-                    </div>
-                </div>
-            </div>
-            <!-- ============================================================== -->
-            <!-- End Bread crumb and right sidebar toggle -->
-            <!-- ============================================================== -->
-            <!-- ============================================================== -->
-            <!-- Container fluid  -->
-            <!-- ============================================================== -->
-            <div class="container-fluid">
-                <!-- ============================================================== -->
-                <!-- Start Page Content -->
-                <!-- ============================================================== -->
-                <div class="row">
-                    <div class="col-md-12">
-                        <div class="card">
-                            <form method="post" class="form-horizontal" id="order-form"> {% csrf_token %}
-                                <div class="card-body">
-                                    <h4 class="card-title">Nouvelle Commande</h4>
+                        
+                        <div class="client-search-card">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">
+                                        <i class="bi bi-search me-1"></i>
+                                        Rechercher par téléphone
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">
+                                            <i class="bi bi-telephone"></i>
+                                        </span>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="phone-search" 
+                                               placeholder="Tapez le numéro de téléphone..."
+                                               autocomplete="off">
+                                    </div>
                                     
-                                    <!-- Sélection Client -->
-                                    <div class="client-selection mb-4">
-                                        <h5 class="mb-3">
-                                            <i class="bi bi-person me-2"></i>
-                                            Client
-                                        </h5>
-                                        
-                                        <!-- Recherche Client -->
+                                    <!-- Résultats de recherche -->
+                                    <div id="client-results" class="mt-3" style="display: none;">
+                                        <div class="list-group" id="client-list"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label class="form-label">
+                                        <i class="bi bi-check-circle me-1"></i>
+                                        Client sélectionné
+                                    </label>
+                                    <div class="selected-client" id="selected-client" style="display: none;">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong id="client-name"></strong><br>
+                                                <small id="client-phone" style="opacity: 0.9;"></small>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-light" id="clear-client">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Message si pas de client -->
+                                    <div class="text-center text-white-50" id="no-client">
+                                        <i class="bi bi-person-x me-2"></i>
+                                        Aucun client sélectionné (optionnel)
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Création rapide de client -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="create-new-client">
+                                        <label class="form-check-label text-white" for="create-new-client">
+                                            <i class="bi bi-plus-circle me-1"></i>
+                                            Créer un nouveau client
+                                        </label>
+                                    </div>
+                                    
+                                    <!-- Formulaire création client -->
+                                    <div id="new-client-form" class="new-client-form" style="display: none;">
                                         <div class="row">
                                             <div class="col-md-6">
-                                                <label class="form-label">Rechercher par téléphone</label>
-                                                <div class="input-group">
-                                                    <span class="input-group-text">
-                                                        <i class="bi bi-telephone"></i>
-                                                    </span>
-                                                    <input type="text" 
-                                                           class="form-control" 
-                                                           id="phone-search" 
-                                                           placeholder="Tapez le numéro..."
-                                                           autocomplete="off">
-                                                </div>
-                                                
-                                                <!-- Résultats de recherche -->
-                                                <div id="client-results" class="mt-2" style="display: none;">
-                                                    <div class="list-group" id="client-list"></div>
-                                                </div>
+                                                <label class="form-label text-white">Nom complet</label>
+                                                <input type="text" class="form-control" id="new-client-name" placeholder="Nom du client">
                                             </div>
-                                            
-                                            <div class="col-md-6">
-                                                <label class="form-label">Client sélectionné</label>
-                                                <div class="selected-client p-3 border rounded bg-light" id="selected-client" style="display: none;">
-                                                    <div class="d-flex justify-content-between align-items-center">
-                                                        <div>
-                                                            <strong id="client-name"></strong><br>
-                                                            <small class="text-muted" id="client-phone"></small>
-                                                        </div>
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" id="clear-client">
-                                                            <i class="bi bi-x"></i>
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Message si pas de client -->
-                                                <div class="no-client text-muted" id="no-client">
-                                                    <small>Aucun client sélectionné (optionnel)</small>
-                                                </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label text-white">Téléphone</label>
+                                                <input type="text" 
+                                                       class="form-control" 
+                                                       id="new-client-phone" 
+                                                       placeholder="Ex: 7123456 (7 chiffres)"
+                                                       maxlength="7"
+                                                       pattern="[0-9]{7}">
+                                            </div>
+                                            <div class="col-md-2 d-flex align-items-end">
+                                                <button type="button" class="btn btn-light w-100" id="save-new-client">
+                                                    <i class="bi bi-plus me-1"></i>
+                                                    Créer
+                                                </button>
                                             </div>
                                         </div>
-                                        
-                                        <!-- Création rapide de client -->
-                                        <div class="row mt-3">
-                                            <div class="col-12">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="create-new-client">
-                                                    <label class="form-check-label" for="create-new-client">
-                                                        Créer un nouveau client
-                                                    </label>
-                                                </div>
-                                                
-                                                <!-- Formulaire création client -->
-                                                <div id="new-client-form" class="mt-3" style="display: none;">
-                                                    <div class="row">
-                                                        <div class="col-md-6">
-                                                            <label class="form-label">Nom complet</label>
-                                                            <input type="text" class="form-control" id="new-client-name" placeholder="Nom du client">
-                                                        </div>
-                                                                                                <div class="col-md-4">
-                                            <label class="form-label">Téléphone</label>
-                                            <input type="text" 
-                                                   class="form-control" 
-                                                   id="new-client-phone" 
-                                                   placeholder="Ex: 7123456 (7 chiffres)"
-                                                   maxlength="7"
-                                                   pattern="[0-9]{7}">
-                                        </div>
-                                                        <div class="col-md-2 d-flex align-items-end">
-                                                            <button type="button" class="btn btn-success w-100" id="save-new-client">
-                                                                <i class="bi bi-plus me-1"></i>
-                                                                Créer
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <hr>
-                                    
-                                    <!-- Champs de commande existants -->
-                                    <h5 class="mb-3">
-                                        <i class="bi bi-cart me-2"></i>
-                                        Détails de la commande
-                                    </h5>
-                                    
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="form-group">
-                                                {{ form.date.label_tag }}
-                                                {{ form.date }}
-                                                {% if form.date.help_text %}
-                                                    <small class="form-text text-muted">
-                                                        <i class="bi bi-calendar me-1"></i>
-                                                        {{ form.date.help_text }}
-                                                    </small>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="alert alert-info">
-                                                <i class="bi bi-info-circle me-2"></i>
-                                                <strong>Numéro de commande :</strong> Sera généré automatiquement après création
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Champ title masqué -->
-                                    {{ form.title }}
-                                    
-                                    <!-- Champ caché pour l'ID client -->
-                                    <input type="hidden" id="client_id" name="client_id" value="">
-                                </div>
-                                <div class="border-top">
-                                    <div class="card-body">
-                                        <button type="submit" class="btn btn-primary">Submit</button>
                                     </div>
                                 </div>
-                            </form>
+                            </div>
+                        </div>
+                        
+                        <!-- Section Détails de la commande -->
+                        <div class="section-header">
+                            <h5>
+                                <i class="bi bi-cart-check me-2"></i>
+                                Détails de la Commande
+                            </h5>
+                        </div>
+                        
+                        <div class="order-details-card">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="form-label">
+                                            <i class="bi bi-calendar-event me-1"></i>
+                                            {{ form.date.label }}
+                                        </label>
+                                        {{ form.date }}
+                                        {% if form.date.help_text %}
+                                            <small class="form-text text-muted">
+                                                <i class="bi bi-info-circle me-1"></i>
+                                                {{ form.date.help_text }}
+                                            </small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-alert">
+                                        <i class="bi bi-info-circle me-2"></i>
+                                        <strong>Numéro de commande :</strong> Sera généré automatiquement après création
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Champ title masqué -->
+                            {{ form.title }}
+                            
+                            <!-- Champ caché pour l'ID client -->
+                            <input type="hidden" id="client_id" name="client_id" value="">
                         </div>
                     </div>
-                </div>
-                <!-- editor -->
-                <!-- ============================================================== -->
-                <!-- End PAge Content -->
-                <!-- ============================================================== -->
-                <!-- ============================================================== -->
-                <!-- Right sidebar -->
-                <!-- ============================================================== -->
-                <!-- .right-sidebar -->
-                <!-- ============================================================== -->
-                <!-- End Right sidebar -->
-                <!-- ============================================================== -->
+                    
+                    <div class="card-footer text-center" style="background: transparent; border-top: none;">
+                        <button type="submit" class="btn btn-create-order btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>
+                            Créer la Commande
+                        </button>
+                    </div>
+                </form>
             </div>
-            <!-- ============================================================== -->
-            <!-- End Container fluid  -->
-            <!-- ============================================================== -->
-            <!-- ============================================================== -->
         </div>
-        <!-- ============================================================== -->
-        <!-- End Page wrapper  -->
-        <!-- ============================================================== -->
-
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -349,12 +480,12 @@ $(document).ready(function() {
         const phone = $('#new-client-phone').val().trim();
         
         if (!name || !phone) {
-            alert('Veuillez remplir le nom et le téléphone');
+            showAlert('warning', 'Veuillez remplir le nom et le téléphone');
             return;
         }
         
         if (phone.length !== 7 || !/^\d{7}$/.test(phone)) {
-            alert('Le numéro de téléphone doit contenir exactement 7 chiffres (format Gambie)');
+            showAlert('warning', 'Le numéro de téléphone doit contenir exactement 7 chiffres (format Gambie)');
             return;
         }
         
@@ -404,14 +535,14 @@ $(document).ready(function() {
     // === FONCTION D'ALERTE ===
     function showAlert(type, message) {
         const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'exclamation-triangle'} me-2"></i>
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         `;
         
-        $('.page-wrapper').prepend(alertHtml);
+        $('body').append(alertHtml);
         
         setTimeout(function() {
             $('.alert').fadeOut();
@@ -432,7 +563,7 @@ $(document).ready(function() {
         // Bouton pour définir la date d'aujourd'hui
         if (dateField.length) {
             const todayButton = $(`
-                <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="set-today">
+                <button type="button" class="btn btn-today mt-2" id="set-today">
                     <i class="bi bi-calendar-today me-1"></i>
                     Aujourd'hui
                 </button>
@@ -443,9 +574,9 @@ $(document).ready(function() {
             $('#set-today').click(function() {
                 const today = new Date().toISOString().split('T')[0];
                 dateField.val(today);
-                $(this).removeClass('btn-outline-primary').addClass('btn-success');
+                $(this).removeClass('btn-today').addClass('btn-success');
                 setTimeout(() => {
-                    $(this).removeClass('btn-success').addClass('btn-outline-primary');
+                    $(this).removeClass('btn-success').addClass('btn-today');
                 }, 1000);
             });
             
