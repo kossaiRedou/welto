@@ -9,12 +9,37 @@
         evt.preventDefault();
         const btn = $(this);
         const url = btn.attr('data-href');
+        
+        // Désactiver le bouton pendant la requête
+        btn.prop('disabled', true);
+        btn.html('<i class="bi bi-hourglass-split me-1"></i>Ajout...');
+        
         $.ajax({
             method: 'GET',
             dataType: 'json',
             url: url,
             success : function (data) {
-                $('#order_item_container').html(data.result)
+                if (data.success === false) {
+                    // Afficher l'erreur
+                    alert(data.error || 'Erreur lors de l\'ajout du produit');
+                    // Réactiver le bouton
+                    btn.prop('disabled', false);
+                    btn.html('<i class="bi bi-plus-circle me-1"></i>Add');
+                } else {
+                    // Mettre à jour la commande
+                    $('#order_item_container').html(data.result);
+                    
+                    // Mettre à jour aussi la liste des produits si disponible
+                    if (data.products) {
+                        $('#product_container').html(data.products);
+                    }
+                }
+            },
+            error: function() {
+                alert('Erreur de connexion. Veuillez réessayer.');
+                // Réactiver le bouton
+                btn.prop('disabled', false);
+                btn.html('<i class="bi bi-plus-circle me-1"></i>Add');
             }
         })
     });

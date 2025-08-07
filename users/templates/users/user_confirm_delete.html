@@ -1,0 +1,231 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}Supprimer {{ user.get_full_name }}{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-exclamation-triangle me-2"></i>
+{{ title }}
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">Confirmer la suppression de cet utilisateur</small>
+{% endblock %}
+
+{% block header_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'users:user_list' %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>
+        Retour Liste
+    </a>
+    <a href="{% url 'users:user_profile' user.pk %}" class="btn btn-outline-info btn-sm">
+        <i class="bi bi-eye me-1"></i>
+        Voir Profil
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .delete-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .warning-section {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 25px;
+    }
+    
+    .user-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .btn-danger-custom {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-danger-custom:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+    }
+    
+    .btn-cancel {
+        background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-cancel:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content_wrapper %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card delete-card">
+                <div class="card-body">
+                    <!-- Messages d'erreur/succès -->
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                <i class="bi bi-{% if message.tags == 'success' %}check-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    
+                    <!-- Avertissement -->
+                    <div class="warning-section">
+                        <h5>
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Attention !
+                        </h5>
+                        <p class="mb-0">
+                            Vous êtes sur le point de supprimer définitivement cet utilisateur. 
+                            Cette action est irréversible et supprimera toutes les données associées.
+                        </p>
+                    </div>
+                    
+                    <!-- Informations sur l'utilisateur -->
+                    <div class="user-info">
+                        <h6 class="mb-3">
+                            <i class="bi bi-person me-2"></i>
+                            Informations de l'Utilisateur
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Nom complet :</strong><br>
+                                {{ user.get_full_name }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Nom d'utilisateur :</strong><br>
+                                @{{ user.username }}
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <strong>Email :</strong><br>
+                                {{ user.email }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Rôle :</strong><br>
+                                {% if user.role == 'manager' %}
+                                    <span class="badge bg-primary">Manager</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Employé</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <strong>Statut :</strong><br>
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Actif</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactif</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Date de création :</strong><br>
+                                {{ user.created_at|date:"d/m/Y H:i" }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Formulaire de confirmation -->
+                    <form method="post" id="delete-form">
+                        {% csrf_token %}
+                        <div class="text-center">
+                            <p class="text-muted mb-4">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Tapez <strong>"SUPPRIMER"</strong> pour confirmer la suppression
+                            </p>
+                            
+                            <div class="mb-4">
+                                <input type="text" class="form-control" id="confirmation" 
+                                       placeholder="Tapez SUPPRIMER pour confirmer" 
+                                       style="max-width: 300px; margin: 0 auto;">
+                            </div>
+                            
+                            <div class="btn-group" role="group">
+                                <button type="submit" class="btn btn-danger-custom" id="delete-btn" disabled>
+                                    <i class="bi bi-trash me-2"></i>
+                                    Supprimer Définitivement
+                                </button>
+                                <a href="{% url 'users:user_list' %}" class="btn btn-cancel">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    Annuler
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Validation de la confirmation
+    $('#confirmation').on('input', function() {
+        const confirmation = $(this).val().trim();
+        const deleteBtn = $('#delete-btn');
+        
+        if (confirmation === 'SUPPRIMER') {
+            deleteBtn.prop('disabled', false);
+        } else {
+            deleteBtn.prop('disabled', true);
+        }
+    });
+    
+    // Validation du formulaire
+    $('#delete-form').on('submit', function(e) {
+        const confirmation = $('#confirmation').val().trim();
+        
+        if (confirmation !== 'SUPPRIMER') {
+            e.preventDefault();
+            alert('Veuillez taper "SUPPRIMER" pour confirmer la suppression.');
+            return false;
+        }
+        
+        if (!confirm('Êtes-vous absolument sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.')) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Afficher un indicateur de chargement
+        const btn = $('#delete-btn');
+        const originalText = btn.html();
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-2"></i>Suppression...');
+    });
+    
+    // Focus automatique sur le champ de confirmation
+    $('#confirmation').focus();
+});
+</script>
+{% endblock %} 

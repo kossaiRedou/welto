@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
 from django.db.models import Sum, Q, Count
@@ -20,7 +21,7 @@ from product.models import Product, Category, LOW_STOCK_THRESHOLD
 from order.models import Order, OrderItem
 
 
-@staff_member_required
+@login_required
 def dashboard_view(request):
     """Dashboard principal pour la gestion des approvisionnements et dépenses"""
     
@@ -98,18 +99,15 @@ def dashboard_view(request):
     # === PRODUITS À RÉAPPROVISIONNER ===
     # Produits avec stock faible (moins de 5 unités)
     produits_stock_faible = Product.objects.filter(
-        active=True, qty__lt=LOW_STOCK_THRESHOLD
+        active=True, qty__lt=LOW_STOCK_THRESHOLD, qty__gt=0
     ).order_by('qty')[:10]
     
-    # Filtrer par catégorie si spécifiée
-    if categorie:
-        produits_stock_faible = produits_stock_faible.filter(category=categorie)
+    # Produits en rupture
+    produits_rupture = Product.objects.filter(
+        active=True, qty=0
+    ).order_by('-value')[:10]
     
     context = {
-        'date_debut': date_debut,
-        'date_fin': date_fin,
-        'categorie': categorie,
-        'categories': Category.objects.all(),
         'total_depenses': total_depenses,
         'depenses_par_type': depenses_par_type,
         'mouvements_par_type': mouvements_par_type,
@@ -117,271 +115,234 @@ def dashboard_view(request):
         'dernieres_depenses': dernieres_depenses,
         'derniers_mouvements': derniers_mouvements,
         'produits_stock_faible': produits_stock_faible,
+        'produits_rupture': produits_rupture,
+        'date_debut': date_debut,
+        'date_fin': date_fin,
+        'categorie': categorie,
+        'categories': Category.objects.all(),
     }
     
     return render(request, 'aprovision/dashboard.html', context)
 
 
-@staff_member_required
+@login_required
 def approvisionnement_view(request):
     """Vue pour créer un approvisionnement"""
-    
-    if request.method == 'POST':
-        try:
-            produit_id = request.POST.get('produit')
-            quantite = int(request.POST.get('quantite', 0))
-            prix_achat = float(request.POST.get('prix_achat', 0))
-            description = request.POST.get('description', '')
-            fournisseur = request.POST.get('fournisseur', '')
-            reference = request.POST.get('reference', '')
-            
-            if quantite <= 0 or prix_achat <= 0:
-                messages.error(request, 'La quantité et le prix d\'achat doivent être positifs')
-                return redirect('aprovision:approvisionnement')
-            
-            produit = get_object_or_404(Product, id=produit_id)
-            
-            # Créer l'approvisionnement
-            result = Approvisionnement.objects.create_approvisionnement(
-                produit=produit,
-                quantite=quantite,
-                prix_achat_unitaire=prix_achat,
-                description=description,
-                fournisseur=fournisseur,
-                reference=reference,
-                user=request.user
-            )
-            
-            messages.success(
-                request, 
-                f'Approvisionnement créé avec succès ! Stock de {produit.title} : '
-                f'{result["mouvement"].stock_avant} → {result["mouvement"].stock_apres} unités'
-            )
-            
-            return redirect('aprovision:dashboard')
-            
-        except Exception as e:
-            messages.error(request, f'Erreur lors de la création : {str(e)}')
-    
-    # GET - Afficher le formulaire
-    produits = Product.objects.filter(active=True).order_by('title')
-    
-    context = {
-        'produits': produits,
-    }
-    
-    return render(request, 'aprovision/approvisionnement_form.html', context)
+    # Cette vue est maintenant remplacée par la vue quick_stock_update dans product
+    return redirect('product:quick_stock', pk=1)  # Rediriger vers la gestion des produits
 
 
-@staff_member_required
+@login_required
 def nouvelle_depense_view(request):
     """Page dédiée pour créer une nouvelle dépense"""
-    
     if request.method == 'POST':
-        type_depense_id = request.POST.get('type_depense')
-        description = request.POST.get('description')
+        # Récupérer les données du formulaire
         montant = request.POST.get('montant')
+        type_depense_id = request.POST.get('type_depense')
+        description = request.POST.get('description', '')
+        date_depense = request.POST.get('date_depense')
+        fournisseur = request.POST.get('fournisseur', '')
+        reference = request.POST.get('reference', '')
         
-        if not all([type_depense_id, description, montant]):
-            messages.error(request, 'Veuillez remplir tous les champs obligatoires.')
-            return redirect('aprovision:nouvelle_depense')
+        # Validation
+        if not montant or not type_depense_id:
+            messages.error(request, 'Le montant et le type de dépense sont obligatoires.')
+            return render(request, 'aprovision/nouvelle_depense.html', {
+                'types_depense': TypeDepense.objects.filter(actif=True)
+            })
         
         try:
-            type_depense = TypeDepense.objects.get(id=type_depense_id)
             montant = float(montant)
-            
-            if montant <= 0:
-                messages.error(request, 'Le montant doit être supérieur à 0.')
-                return redirect('aprovision:nouvelle_depense')
+            type_depense = TypeDepense.objects.get(id=type_depense_id)
             
             # Créer la dépense
             depense = Depense.objects.create(
+                montant=montant,
                 type_depense=type_depense,
                 description=description,
-                montant=montant,
-                date_depense=timezone.now().date()
-            )
-            
-            messages.success(request, f'Dépense "{description}" de {montant} GMD enregistrée avec succès.')
-            return redirect('aprovision:dashboard')
-            
-        except (TypeDepense.DoesNotExist, ValueError):
-            messages.error(request, 'Données invalides. Veuillez réessayer.')
-            return redirect('aprovision:nouvelle_depense')
-    
-    # GET request - afficher le formulaire
-    types_depense = TypeDepense.objects.all()
-    
-    context = {
-        'types_depense': types_depense,
-        'today': timezone.now().date(),
-    }
-    
-    return render(request, 'aprovision/nouvelle_depense.html', context)
-
-
-@staff_member_required
-def ajax_depense_rapide(request):
-    """AJAX - Créer une dépense rapidement"""
-    
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            
-            type_depense_id = data.get('type_depense')
-            description = data.get('description', '').strip()
-            montant = float(data.get('montant', 0))
-            fournisseur = data.get('fournisseur', '').strip()
-            reference = data.get('reference', '').strip()
-            
-            if not description or montant <= 0:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Description et montant sont obligatoires'
-                })
-            
-            type_depense = get_object_or_404(TypeDepense, id=type_depense_id)
-            
-            depense = Depense.objects.create(
-                type_depense=type_depense,
-                description=description,
-                montant=montant,
+                date_depense=date_depense or timezone.now().date(),
                 fournisseur=fournisseur,
                 reference=reference,
                 created_by=request.user
             )
             
-            return JsonResponse({
-                'success': True,
-                'message': f'Dépense de {montant} FCFA enregistrée avec succès',
-                'depense': {
-                    'id': depense.id,
-                    'description': depense.description,
-                    'montant': str(depense.montant),
-                    'type': depense.type_depense.nom,
-                    'date': depense.date_depense.strftime('%d/%m/%Y')
-                }
-            })
+            messages.success(request, f'Dépense de {montant} GMD enregistrée avec succès.')
+            return redirect('aprovision:dashboard')
             
-        except Exception as e:
+        except (ValueError, TypeDepense.DoesNotExist):
+            messages.error(request, 'Données invalides.')
+    
+    context = {
+        'types_depense': TypeDepense.objects.filter(actif=True)
+    }
+    
+    return render(request, 'aprovision/nouvelle_depense.html', context)
+
+
+@login_required
+def ajax_depense_rapide(request):
+    """AJAX - Créer une dépense rapidement"""
+    if request.method == 'POST':
+        try:
+            # Récupérer les données JSON
+            data = json.loads(request.body)
+            montant = data.get('montant')
+            type_depense_id = data.get('type_depense_id')
+            description = data.get('description', '')
+            fournisseur = data.get('fournisseur', '')
+            reference = data.get('reference', '')
+            
+            # Validation
+            if not montant or not type_depense_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Le montant et le type de dépense sont obligatoires'
+                })
+            
+            try:
+                montant = float(montant)
+                type_depense = TypeDepense.objects.get(id=type_depense_id)
+                
+                # Créer la dépense
+                depense = Depense.objects.create(
+                    montant=montant,
+                    type_depense=type_depense,
+                    description=description,
+                    fournisseur=fournisseur,
+                    reference=reference,
+                    created_by=request.user
+                )
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Dépense de {montant} GMD enregistrée avec succès',
+                    'depense': {
+                        'id': depense.id,
+                        'montant': depense.montant,
+                        'type': depense.type_depense.nom,
+                        'date': depense.date_depense.strftime('%d/%m/%Y')
+                    }
+                })
+                
+            except (ValueError, TypeDepense.DoesNotExist):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Données invalides'
+                })
+                
+        except json.JSONDecodeError:
             return JsonResponse({
                 'success': False,
-                'error': f'Erreur : {str(e)}'
+                'error': 'Format JSON invalide'
             })
     
     return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 
-@staff_member_required
+@login_required
 def ajax_recherche_produits(request):
     """AJAX - Rechercher des produits pour l'approvisionnement"""
+    if request.method == 'GET':
+        search = request.GET.get('search', '').strip()
+        
+        if len(search) < 2:
+            return JsonResponse({'success': True, 'produits': []})
+        
+        produits = Product.objects.filter(
+            Q(title__icontains=search) |
+            Q(category__title__icontains=search),
+            active=True
+        )[:10]
+        
+        produits_data = []
+        for produit in produits:
+            produits_data.append({
+                'id': produit.id,
+                'title': produit.title,
+                'category': produit.category.title if produit.category else '',
+                'qty': produit.qty,
+                'prix_achat': float(produit.prix_achat) if produit.prix_achat else 0,
+                'display': f"{produit.title} ({produit.category.title if produit.category else 'Sans catégorie'})"
+            })
+        
+        return JsonResponse({'success': True, 'produits': produits_data})
     
-    q = request.GET.get('q', '').strip()
-    
-    if len(q) < 2:
-        return JsonResponse({'produits': []})
-    
-    produits = Product.objects.filter(
-        active=True,
-        title__icontains=q
-    ).values('id', 'title', 'qty', 'final_value')[:10]
-    
-    return JsonResponse({
-        'produits': list(produits)
-    })
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 
-@staff_member_required
+@login_required
 def ajax_get_types_depense(request):
     """AJAX - Récupérer les types de dépenses actifs"""
+    if request.method == 'GET':
+        types = TypeDepense.objects.filter(actif=True)
+        types_data = []
+        
+        for type_depense in types:
+            types_data.append({
+                'id': type_depense.id,
+                'nom': type_depense.nom,
+                'couleur': type_depense.couleur
+            })
+        
+        return JsonResponse({'success': True, 'types': types_data})
     
-    types = TypeDepense.objects.filter(actif=True).values(
-        'id', 'nom', 'description', 'couleur'
-    ).order_by('nom')
-    
-    return JsonResponse({
-        'types': list(types)
-    })
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 
-@staff_member_required
+@login_required
 def ajax_get_dashboard_stats(request):
     """AJAX - Récupérer les statistiques du dashboard"""
-    
-    from datetime import datetime, timedelta
-    from django.utils import timezone
-    
-    # Période par défaut : 30 derniers jours
-    today = timezone.now().date()
-    date_debut = today - timedelta(days=30)
-    date_fin = today
-    
-    # Filtres de date depuis la requête
-    if request.GET.get('date_debut'):
-        date_debut = datetime.strptime(request.GET.get('date_debut'), '%Y-%m-%d').date()
-    if request.GET.get('date_fin'):
-        date_fin = datetime.strptime(request.GET.get('date_fin'), '%Y-%m-%d').date()
-    
-    # Dépenses de la période
-    depenses_periode = Depense.objects.filter(
-        date_depense__gte=date_debut,
-        date_depense__lte=date_fin
-    )
-    
-    total_depenses = depenses_periode.aggregate(
-        total=Sum('montant')
-    )['total'] or 0
-    
-    # Dépenses par type
-    depenses_par_type = depenses_periode.values(
-        'type_depense__nom', 'type_depense__couleur'
-    ).annotate(
-        total=Sum('montant'),
-        nombre=models.Count('id')
-    ).order_by('-total')
-    
-    # Calculer les pourcentages
-    for depense_type in depenses_par_type:
-        if total_depenses > 0:
-            depense_type['pourcentage'] = (depense_type['total'] / total_depenses) * 100
-        else:
-            depense_type['pourcentage'] = 0
-    
-    # Mouvements récents
-    recent_movements = MouvementStock.objects.select_related(
-        'produit'
-    ).order_by('-date_mouvement')[:5]
-    
-    movements_data = []
-    for mouvement in recent_movements:
-        movements_data.append({
-            'produit': mouvement.produit.title,
-            'type': mouvement.get_type_mouvement_display(),
-            'quantite': mouvement.quantite,
-            'date': mouvement.date_mouvement.strftime('%d/%m %H:%M'),
-            'icone': mouvement.get_icone(),
-            'couleur': mouvement.get_couleur_badge()
+    if request.method == 'GET':
+        # Période par défaut : 30 derniers jours
+        today = timezone.now().date()
+        date_debut = today - timedelta(days=30)
+        date_fin = today
+        
+        # Filtres depuis la requête
+        if request.GET.get('date_debut'):
+            date_debut = datetime.strptime(request.GET.get('date_debut'), '%Y-%m-%d').date()
+        if request.GET.get('date_fin'):
+            date_fin = datetime.strptime(request.GET.get('date_fin'), '%Y-%m-%d').date()
+        
+        # Statistiques
+        total_depenses = Depense.objects.filter(
+            date_depense__gte=date_debut,
+            date_depense__lte=date_fin
+        ).aggregate(total=Sum('montant'))['total'] or 0
+        
+        total_mouvements = MouvementStock.objects.filter(
+            date_mouvement__date__gte=date_debut,
+            date_mouvement__date__lte=date_fin
+        ).count()
+        
+        cout_approvisionnements = MouvementStock.objects.filter(
+            date_mouvement__date__gte=date_debut,
+            date_mouvement__date__lte=date_fin,
+            type_mouvement=TypeMouvement.ENTREE,
+            cout_total__isnull=False
+        ).aggregate(total=Sum('cout_total'))['total'] or 0
+        
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'total_depenses': total_depenses,
+                'total_mouvements': total_mouvements,
+                'cout_approvisionnements': cout_approvisionnements,
+                'date_debut': date_debut.strftime('%Y-%m-%d'),
+                'date_fin': date_fin.strftime('%Y-%m-%d')
+            }
         })
     
-    return JsonResponse({
-        'total_depenses': float(total_depenses),
-        'depenses_par_type': list(depenses_par_type),
-        'recent_movements': movements_data,
-        'periode': {
-            'debut': date_debut.strftime('%d/%m/%Y'),
-            'fin': date_fin.strftime('%d/%m/%Y')
-        }
-    })
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 
-@staff_member_required
+@login_required
 def analytics_dashboard(request):
     """Dashboard analytique avancé avec filtres dynamiques"""
     
-    # === FILTRES ===
-    # Période par défaut : 30 derniers jours
+    # Période par défaut : mois en cours
     today = timezone.now().date()
-    date_debut = today - timedelta(days=30)
+    date_debut = today.replace(day=1)  # Premier jour du mois
     date_fin = today
     
     # Filtres depuis la requête
@@ -396,31 +357,29 @@ def analytics_dashboard(request):
     if categorie_id:
         categorie = get_object_or_404(Category, id=categorie_id)
     
-    # === QUERYSETS FILTRÉS ===
-    # Dépenses filtrées
-    depenses_qs = Depense.objects.filter(
+    # === STATISTIQUES DÉPENSES ===
+    depenses_periode = Depense.objects.filter(
         date_depense__gte=date_debut,
         date_depense__lte=date_fin
     )
     
-    # Mouvements filtrés
-    mouvements_qs = MouvementStock.objects.filter(
-        date_mouvement__date__gte=date_debut,
-        date_mouvement__date__lte=date_fin
-    )
-    
-    # Produits filtrés par catégorie
-    produits_qs = Product.objects.filter(active=True)
+    # Filtrer par catégorie si sélectionnée
     if categorie:
-        produits_qs = produits_qs.filter(category=categorie)
-        # Filtrer les mouvements par les produits de cette catégorie
-        mouvements_qs = mouvements_qs.filter(produit__in=produits_qs)
+        # Pour les dépenses, on ne peut pas filtrer par catégorie directement
+        # car les dépenses ne sont pas liées aux produits
+        pass
     
-    # === STATISTIQUES GÉNÉRALES ===
-    total_depenses = depenses_qs.aggregate(total=Sum('montant'))['total'] or 0
-    total_approvisionnements = mouvements_qs.filter(
-        type_mouvement=TypeMouvement.ENTREE
-    ).aggregate(total=Sum('cout_total'))['total'] or 0
+    total_depenses = depenses_periode.aggregate(
+        total=Sum('montant')
+    )['total'] or 0
+    
+    # Dépenses par type
+    depenses_par_type = depenses_periode.values(
+        'type_depense__nom', 'type_depense__couleur'
+    ).annotate(
+        total=Sum('montant'),
+        nombre=Count('id')
+    ).order_by('-total')
     
     # === STATISTIQUES DE VENTE ===
     # Commandes de la période (avec des produits vendus)
@@ -486,91 +445,96 @@ def analytics_dashboard(request):
     
     # Total des dettes (en tenant compte des paiements partiels)
     reste_a_payer = sum(
-        commande.remaining_amount() 
+        commande.remaining_amount()
         for commande in commandes_impayees
     )
     
+    # === MOUVEMENTS DE STOCK ===
+    mouvements_periode = MouvementStock.objects.filter(
+        date_mouvement__date__gte=date_debut,
+        date_mouvement__date__lte=date_fin
+    )
+    
+    # Filtrer par catégorie si sélectionnée
+    if categorie:
+        mouvements_periode = mouvements_periode.filter(
+            produit__category=categorie
+        )
+    
     # Mouvements par type
-    mouvements_par_type = mouvements_qs.values('type_mouvement').annotate(
+    mouvements_par_type = mouvements_periode.values(
+        'type_mouvement'
+    ).annotate(
         nombre=Count('id'),
         quantite_totale=Sum('quantite')
-    ).order_by('type_mouvement')
+    )
     
-    # === STATISTIQUES PAR CATÉGORIE ===
-    if not categorie:
-        # Statistiques par catégorie (simplifiées)
-        stats_par_categorie = Category.objects.annotate(
-            nombre_produits=Count('product'),
-            stock_total=Sum('product__qty'),
-            valeur_stock=Sum(models.F('product__qty') * models.F('product__prix_achat'))
-        ).filter(nombre_produits__gt=0)
-        
-        # Ajouter les statistiques de mouvements manuellement
-        for stat in stats_par_categorie:
-            produits_categorie = Product.objects.filter(category=stat)
-            stat.mouvements_entree = MouvementStock.objects.filter(
-                produit__in=produits_categorie,
-                type_mouvement=TypeMouvement.ENTREE
-            ).count()
-            stat.mouvements_sortie = MouvementStock.objects.filter(
-                produit__in=produits_categorie,
-                type_mouvement__in=[TypeMouvement.SORTIE_VENTE, TypeMouvement.SORTIE_PERTE]
-            ).count()
-    else:
-        stats_par_categorie = None
+    # === TOP PRODUITS ===
+    # Produits les plus vendus
+    top_produits_ventes = OrderItem.objects.filter(
+        order__in=commandes_periode
+    ).values(
+        'product__title', 'product__category__title'
+    ).annotate(
+        total_qty=Sum('qty'),
+        total_revenue=Sum('total_price')
+    ).order_by('-total_qty')[:5]
     
-    # === ÉVOLUTION TEMPORELLE ===
-    # Dépenses par jour
-    depenses_par_jour = depenses_qs.values('date_depense').annotate(
-        total=Sum('montant')
-    ).order_by('date_depense')
+    # Produits avec le plus de mouvements
+    produits_qs = Product.objects.filter(
+        mouvements__date_mouvement__date__gte=date_debut,
+        mouvements__date_mouvement__date__lte=date_fin
+    )
     
-    # Ventes par jour
-    ventes_par_jour = commandes_periode.values('date').annotate(
-        total=Sum('final_value'),
+    if categorie:
+        produits_qs = produits_qs.filter(category=categorie)
+    
+    top_produits_mouvements = produits_qs.annotate(
+        total_mouvements=Count('mouvements'),
+        total_quantite=Sum('mouvements__quantite')
+    ).order_by('-total_mouvements')[:5]
+    
+    # === ÉVOLUTION DES VENTES ===
+    # Données pour le graphique d'évolution des ventes
+    ventes_par_jour = Order.objects.filter(
+        date__gte=date_debut,
+        date__lte=date_fin,
+        order_items__isnull=False
+    ).values('date').annotate(
+        total_ventes=Sum('final_value'),
         nombre_commandes=Count('id')
     ).order_by('date')
     
-    # Mouvements par jour
-    mouvements_par_jour = mouvements_qs.values('date_mouvement__date').annotate(
-        entree=Sum('quantite', filter=Q(type_mouvement=TypeMouvement.ENTREE)),
-        sortie=Sum('quantite', filter=Q(type_mouvement__in=[TypeMouvement.SORTIE_VENTE, TypeMouvement.SORTIE_PERTE]))
-    ).order_by('date_mouvement__date')
+    # Filtrer par catégorie si sélectionnée
+    if categorie:
+        ventes_par_jour = ventes_par_jour.filter(
+            order_items__product__category=categorie
+        )
     
-    # === TOP PRODUITS ===
-    # Produits avec le plus de mouvements
-    top_produits_mouvements = produits_qs.annotate(
-        total_mouvements=Count('mouvements'),
-        total_entrees=Sum('mouvements__quantite', filter=Q(mouvements__type_mouvement=TypeMouvement.ENTREE)),
-        total_sorties=Sum('mouvements__quantite', filter=Q(mouvements__type_mouvement__in=[TypeMouvement.SORTIE_VENTE, TypeMouvement.SORTIE_PERTE]))
-    ).filter(total_mouvements__gt=0).order_by('-total_mouvements')[:10]
+    # Préparer les données pour Chart.js
+    chart_data = {
+        'labels': [vente['date'].strftime('%d/%m') for vente in ventes_par_jour],
+        'datasets': [{
+            'label': 'Ventes (GMD)',
+            'data': [float(vente['total_ventes']) for vente in ventes_par_jour],
+            'borderColor': 'rgb(75, 192, 192)',
+            'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+            'tension': 0.1
+        }]
+    }
     
-    # Produits avec stock faible
-    produits_stock_faible = produits_qs.filter(qty__lt=LOW_STOCK_THRESHOLD).order_by('qty')[:10]
-    
-    # === DÉPENSES PAR TYPE ===
-    depenses_par_type = depenses_qs.values(
-        'type_depense__nom', 'type_depense__couleur'
-    ).annotate(
-        total=Sum('montant'),
-        nombre=Count('id')
-    ).order_by('-total')
-    
-    # Calculer les pourcentages
-    for depense_type in depenses_par_type:
-        if total_depenses > 0:
-            depense_type['pourcentage'] = (depense_type['total'] / total_depenses) * 100
-        else:
-            depense_type['pourcentage'] = 0
-    
-    # === CONTEXTE ===
     context = {
+        # === PÉRIODE ET FILTRES ===
         'date_debut': date_debut,
         'date_fin': date_fin,
         'categorie': categorie,
         'categories': Category.objects.all(),
+        
+        # === STATISTIQUES DÉPENSES ===
         'total_depenses': total_depenses,
-        'total_approvisionnements': total_approvisionnements,
+        'depenses_par_type': depenses_par_type,
+        
+        # === STATISTIQUES VENTES ===
         'total_ventes_argent': total_ventes_argent,
         'total_ventes_nombre_commandes': total_ventes_nombre_commandes,
         'total_ventes_nombre_produits': total_ventes_nombre_produits,
@@ -578,217 +542,202 @@ def analytics_dashboard(request):
         'marge_beneficiaire': marge_beneficiaire,
         'benefice': benefice,
         'reste_a_payer': reste_a_payer,
+        
+        # === MOUVEMENTS ===
         'mouvements_par_type': mouvements_par_type,
-        'stats_par_categorie': stats_par_categorie,
-        'depenses_par_jour': list(depenses_par_jour),
-        'ventes_par_jour': list(ventes_par_jour),
-        'mouvements_par_jour': list(mouvements_par_jour),
+        
+        # === TOP PRODUITS ===
+        'top_produits_ventes': top_produits_ventes,
         'top_produits_mouvements': top_produits_mouvements,
-        'produits_stock_faible': produits_stock_faible,
-        'depenses_par_type': depenses_par_type,
-        'mouvements_par_type': mouvements_par_type,
+        
+        # === GRAPHIQUE ===
+        'chart_data': chart_data,
     }
     
     return render(request, 'aprovision/analytics_dashboard.html', context)
 
 
-@staff_member_required
+@login_required
 def ajax_analytics_data(request):
     """Endpoint AJAX pour les données analytiques dynamiques"""
-    
-    # Récupérer les paramètres
-    date_debut = request.GET.get('date_debut')
-    date_fin = request.GET.get('date_fin')
-    categorie_id = request.GET.get('categorie')
-    
-    if date_debut:
-        date_debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-    else:
-        date_debut = timezone.now().date() - timedelta(days=30)
-    
-    if date_fin:
-        date_fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-    else:
-        date_fin = timezone.now().date()
-    
-    # Filtrer les données
-    depenses_qs = Depense.objects.filter(
-        date_depense__gte=date_debut,
-        date_depense__lte=date_fin
-    )
-    
-    mouvements_qs = MouvementStock.objects.filter(
-        date_mouvement__date__gte=date_debut,
-        date_mouvement__date__lte=date_fin
-    )
-    
-    if categorie_id:
-        categorie = get_object_or_404(Category, id=categorie_id)
-        produits_qs = Product.objects.filter(category=categorie, active=True)
-        mouvements_qs = mouvements_qs.filter(produit__in=produits_qs)
-    
-    # Calculer les statistiques
-    total_depenses = depenses_qs.aggregate(total=Sum('montant'))['total'] or 0
-    total_approvisionnements = mouvements_qs.filter(
-        type_mouvement=TypeMouvement.ENTREE
-    ).aggregate(total=Sum('cout_total'))['total'] or 0
-    
-    # === STATISTIQUES DE VENTE ===
-    # Commandes de la période (avec des produits vendus)
-    commandes_periode = Order.objects.filter(
-        date__gte=date_debut,
-        date__lte=date_fin,
-        order_items__isnull=False  # Commandes avec des produits
-    ).distinct()
-    
-    # Filtrer par catégorie si sélectionnée
-    if categorie_id:
-        commandes_periode = commandes_periode.filter(
-            order_items__product__category_id=categorie_id
+    if request.method == 'GET':
+        # Période
+        date_debut = datetime.strptime(request.GET.get('date_debut'), '%Y-%m-%d').date()
+        date_fin = datetime.strptime(request.GET.get('date_fin'), '%Y-%m-%d').date()
+        
+        # Filtre par catégorie
+        categorie_id = request.GET.get('categorie')
+        categorie = None
+        if categorie_id:
+            categorie = get_object_or_404(Category, id=categorie_id)
+        
+        # === STATISTIQUES DÉPENSES ===
+        depenses_periode = Depense.objects.filter(
+            date_depense__gte=date_debut,
+            date_depense__lte=date_fin
+        )
+        
+        total_depenses = depenses_periode.aggregate(
+            total=Sum('montant')
+        )['total'] or 0
+        
+        # === STATISTIQUES VENTES ===
+        commandes_periode = Order.objects.filter(
+            date__gte=date_debut,
+            date__lte=date_fin,
+            order_items__isnull=False
         ).distinct()
+        
+        if categorie:
+            commandes_periode = commandes_periode.filter(
+                order_items__product__category=categorie
+            ).distinct()
+        
+        total_ventes_argent = commandes_periode.aggregate(
+            total=Sum('final_value')
+        )['total'] or 0
+        
+        total_ventes_nombre_commandes = commandes_periode.count()
+        
+        total_ventes_nombre_produits = OrderItem.objects.filter(
+            order__in=commandes_periode
+        ).aggregate(
+            total=Sum('qty')
+        )['total'] or 0
+        
+        panier_moyen = 0
+        if total_ventes_nombre_commandes > 0:
+            panier_moyen = total_ventes_argent / total_ventes_nombre_commandes
+        
+        marge_beneficiaire = total_ventes_argent - total_depenses
+        
+        # === BÉNÉFICE ===
+        cout_produits_vendus = OrderItem.objects.filter(
+            order__in=commandes_periode
+        ).aggregate(
+            total=Sum(models.F('qty') * models.F('product__prix_achat'))
+        )['total'] or 0
+        
+        benefice = total_ventes_argent - cout_produits_vendus
+        
+        # === RESTE À PAYER ===
+        commandes_impayees = Order.objects.filter(
+            date__gte=date_debut,
+            date__lte=date_fin,
+            is_paid=False
+        )
+        
+        if categorie:
+            commandes_impayees = commandes_impayees.filter(
+                order_items__product__category=categorie
+            ).distinct()
+        
+        reste_a_payer = sum(
+            commande.remaining_amount()
+            for commande in commandes_impayees
+        )
+        
+        # === ÉVOLUTION DES VENTES ===
+        ventes_par_jour = Order.objects.filter(
+            date__gte=date_debut,
+            date__lte=date_fin,
+            order_items__isnull=False
+        ).values('date').annotate(
+            total_ventes=Sum('final_value'),
+            nombre_commandes=Count('id')
+        ).order_by('date')
+        
+        if categorie:
+            ventes_par_jour = ventes_par_jour.filter(
+                order_items__product__category=categorie
+            )
+        
+        chart_data = {
+            'labels': [vente['date'].strftime('%d/%m') for vente in ventes_par_jour],
+            'datasets': [{
+                'label': 'Ventes (GMD)',
+                'data': [float(vente['total_ventes']) for vente in ventes_par_jour],
+                'borderColor': 'rgb(75, 192, 192)',
+                'backgroundColor': 'rgba(75, 192, 192, 0.2)',
+                'tension': 0.1
+            }]
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'total_depenses': total_depenses,
+                'total_ventes_argent': total_ventes_argent,
+                'total_ventes_nombre_commandes': total_ventes_nombre_commandes,
+                'total_ventes_nombre_produits': total_ventes_nombre_produits,
+                'panier_moyen': panier_moyen,
+                'marge_beneficiaire': marge_beneficiaire,
+                'benefice': benefice,
+                'reste_a_payer': reste_a_payer,
+            },
+            'chart_data': chart_data
+        })
     
-    # Total des ventes en argent (toutes les commandes avec des produits)
-    total_ventes_argent = commandes_periode.aggregate(
-        total=Sum('final_value')
-    )['total'] or 0
-    
-    # Nombre de commandes
-    total_ventes_nombre_commandes = commandes_periode.count()
-    
-    # Nombre total de produits vendus
-    total_ventes_nombre_produits = OrderItem.objects.filter(
-        order__in=commandes_periode
-    ).aggregate(
-        total=Sum('qty')
-    )['total'] or 0
-    
-    # Panier moyen (total ventes / nombre commandes)
-    panier_moyen = 0
-    if total_ventes_nombre_commandes > 0:
-        panier_moyen = total_ventes_argent / total_ventes_nombre_commandes
-    
-    # Marge bénéficiaire (revenus - dépenses)
-    marge_beneficiaire = total_ventes_argent - total_depenses
-    
-    # === BÉNÉFICE (VENTES - COÛT DES PRODUITS VENDUS) ===
-    # Calculer le coût total des produits vendus (basé sur prix_achat)
-    cout_produits_vendus = OrderItem.objects.filter(
-        order__in=commandes_periode
-    ).aggregate(
-        total=Sum(models.F('qty') * models.F('product__prix_achat'))
-    )['total'] or 0
-    
-    benefice = total_ventes_argent - cout_produits_vendus
-    
-    # === RESTE À PAYER (DETTES) ===
-    # Commandes non payées de la période
-    commandes_impayees = Order.objects.filter(
-        date__gte=date_debut,
-        date__lte=date_fin,
-        is_paid=False  # Seulement les commandes non payées
-    )
-    
-    # Filtrer par catégorie si sélectionnée
-    if categorie_id:
-        commandes_impayees = commandes_impayees.filter(
-            order_items__product__category_id=categorie_id
-        ).distinct()
-    
-    # Total des dettes (en tenant compte des paiements partiels)
-    reste_a_payer = sum(
-        commande.remaining_amount() 
-        for commande in commandes_impayees
-    )
-    
-    # Dépenses par jour pour le graphique
-    depenses_par_jour = list(depenses_qs.values('date_depense').annotate(
-        total=Sum('montant')
-    ).order_by('date_depense'))
-    
-    # Ventes par jour pour le graphique
-    ventes_par_jour = list(commandes_periode.values('date').annotate(
-        total=Sum('final_value'),
-        nombre_commandes=Count('id')
-    ).order_by('date'))
-    
-    # Mouvements par jour pour le graphique
-    mouvements_par_jour = list(mouvements_qs.values('date_mouvement__date').annotate(
-        entree=Sum('quantite', filter=Q(type_mouvement=TypeMouvement.ENTREE)),
-        sortie=Sum('quantite', filter=Q(type_mouvement__in=[TypeMouvement.SORTIE_VENTE, TypeMouvement.SORTIE_PERTE]))
-    ).order_by('date_mouvement__date'))
-    
-    return JsonResponse({
-        'total_depenses': total_depenses,
-        'total_approvisionnements': total_approvisionnements,
-        'total_ventes_argent': total_ventes_argent,
-        'total_ventes_nombre_commandes': total_ventes_nombre_commandes,
-        'total_ventes_nombre_produits': total_ventes_nombre_produits,
-        'panier_moyen': panier_moyen,
-        'marge_beneficiaire': marge_beneficiaire,
-        'benefice': benefice,
-        'reste_a_payer': reste_a_payer,
-        'depenses_par_jour': depenses_par_jour,
-        'ventes_par_jour': ventes_par_jour,
-        'mouvements_par_jour': mouvements_par_jour,
-    })
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 
-@staff_member_required
+@login_required
 def ajax_create_type_depense(request):
     """Vue AJAX pour créer un nouveau type de dépense"""
     if request.method == 'POST':
         try:
+            # Récupérer les données JSON
             data = json.loads(request.body)
             nom = data.get('nom', '').strip()
-            couleur = data.get('couleur', '#667eea')
+            couleur = data.get('couleur', '#007bff')
+            description = data.get('description', '')
             
+            # Validation
             if not nom:
                 return JsonResponse({
                     'success': False,
-                    'error': 'Le nom du type est obligatoire.'
+                    'error': 'Le nom du type de dépense est obligatoire'
                 })
             
             # Vérifier si le type existe déjà
             if TypeDepense.objects.filter(nom__iexact=nom).exists():
                 return JsonResponse({
                     'success': False,
-                    'error': f'Un type de dépense "{nom}" existe déjà.'
+                    'error': f'Un type de dépense "{nom}" existe déjà'
                 })
             
-            # Créer le nouveau type
-            nouveau_type = TypeDepense.objects.create(
+            # Créer le type de dépense
+            type_depense = TypeDepense.objects.create(
                 nom=nom,
-                couleur=couleur
+                couleur=couleur,
+                description=description,
+                actif=True
             )
             
             return JsonResponse({
                 'success': True,
-                'message': f'Type "{nom}" créé avec succès.',
-                'type': {
-                    'id': nouveau_type.id,
-                    'nom': nouveau_type.nom,
-                    'couleur': nouveau_type.couleur
+                'message': f'Type de dépense "{nom}" créé avec succès',
+                'type_depense': {
+                    'id': type_depense.id,
+                    'nom': type_depense.nom,
+                    'couleur': type_depense.couleur
                 }
             })
             
         except json.JSONDecodeError:
             return JsonResponse({
                 'success': False,
-                'error': 'Données invalides.'
+                'error': 'Format JSON invalide'
             })
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': f'Erreur lors de la création: {str(e)}'
+                'error': str(e)
             })
     
-    return JsonResponse({
-        'success': False,
-        'error': 'Méthode non autorisée.'
-    })
+    return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 
-@method_decorator(staff_member_required, name='dispatch')
 class MouvementListView(ListView):
     """Liste des mouvements de stock"""
     model = MouvementStock
@@ -797,47 +746,36 @@ class MouvementListView(ListView):
     paginate_by = 50
     
     def get_queryset(self):
-        qs = MouvementStock.objects.select_related(
-            'produit', 'produit__category', 'reference_commande', 
-            'reference_depense', 'created_by'
+        queryset = MouvementStock.objects.select_related(
+            'produit', 'reference_commande', 'reference_depense'
         ).order_by('-date_mouvement')
         
         # Filtres
-        produit_id = self.request.GET.get('produit')
         type_mouvement = self.request.GET.get('type_mouvement')
-        date_debut = self.request.GET.get('date_debut')
-        date_fin = self.request.GET.get('date_fin')
-        
-        if produit_id:
-            qs = qs.filter(produit_id=produit_id)
-        
         if type_mouvement:
-            qs = qs.filter(type_mouvement=type_mouvement)
+            queryset = queryset.filter(type_mouvement=type_mouvement)
         
+        produit_id = self.request.GET.get('produit')
+        if produit_id:
+            queryset = queryset.filter(produit_id=produit_id)
+        
+        date_debut = self.request.GET.get('date_debut')
         if date_debut:
-            try:
-                date_debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                qs = qs.filter(date_mouvement__date__gte=date_debut)
-            except:
-                pass
+            queryset = queryset.filter(date_mouvement__date__gte=date_debut)
         
+        date_fin = self.request.GET.get('date_fin')
         if date_fin:
-            try:
-                date_fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                qs = qs.filter(date_mouvement__date__lte=date_fin)
-            except:
-                pass
+            queryset = queryset.filter(date_mouvement__date__lte=date_fin)
         
-        return qs
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['produits'] = Product.objects.filter(active=True).order_by('title')
         context['types_mouvement'] = TypeMouvement.choices
+        context['produits'] = Product.objects.filter(active=True)
         return context
 
 
-@method_decorator(staff_member_required, name='dispatch')
 class DepenseListView(ListView):
     """Liste des dépenses"""
     model = Depense
@@ -846,42 +784,32 @@ class DepenseListView(ListView):
     paginate_by = 50
     
     def get_queryset(self):
-        qs = Depense.objects.select_related(
-            'type_depense', 'created_by'
-        ).order_by('-date_depense', '-created_at')
+        queryset = Depense.objects.select_related('type_depense').order_by('-date_depense')
         
         # Filtres
         type_depense_id = self.request.GET.get('type_depense')
-        date_debut = self.request.GET.get('date_debut')
-        date_fin = self.request.GET.get('date_fin')
-        
         if type_depense_id:
-            qs = qs.filter(type_depense_id=type_depense_id)
+            queryset = queryset.filter(type_depense_id=type_depense_id)
         
+        date_debut = self.request.GET.get('date_debut')
         if date_debut:
-            try:
-                date_debut = datetime.strptime(date_debut, '%Y-%m-%d').date()
-                qs = qs.filter(date_depense__gte=date_debut)
-            except:
-                pass
+            queryset = queryset.filter(date_depense__gte=date_debut)
         
+        date_fin = self.request.GET.get('date_fin')
         if date_fin:
-            try:
-                date_fin = datetime.strptime(date_fin, '%Y-%m-%d').date()
-                qs = qs.filter(date_depense__lte=date_fin)
-            except:
-                pass
+            queryset = queryset.filter(date_depense__lte=date_fin)
         
-        return qs
+        montant_min = self.request.GET.get('montant_min')
+        if montant_min:
+            queryset = queryset.filter(montant__gte=montant_min)
+        
+        montant_max = self.request.GET.get('montant_max')
+        if montant_max:
+            queryset = queryset.filter(montant__lte=montant_max)
+        
+        return queryset
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['types_depense'] = TypeDepense.objects.filter(actif=True)
-        
-        # Calcul du total des dépenses affichées
-        total_depenses = self.get_queryset().aggregate(
-            total=Sum('montant')
-        )['total'] or 0
-        context['total_depenses'] = total_depenses
-        
         return context

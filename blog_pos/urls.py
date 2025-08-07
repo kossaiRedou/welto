@@ -13,6 +13,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', HomepageView.as_view(), name='homepage'),
     
+    # Gestion des utilisateurs
+    path('users/', include('users.urls')),
+    
     # Gestion des commandes
     path('order-list/', OrderListView.as_view(), name='order_list'),
     path('create/', CreateOrderView.as_view(), name='create-order'),

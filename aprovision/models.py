@@ -1,7 +1,6 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
-from django.contrib.auth.models import User
 from decimal import Decimal
 
 CURRENCY = settings.CURRENCY
@@ -38,7 +37,7 @@ class Depense(models.Model):
     
     # Métadonnées
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         verbose_name = "Dépense"
@@ -87,7 +86,7 @@ class MouvementStock(models.Model):
     # Métadonnées
     description = models.CharField(max_length=200, blank=True, help_text="Description du mouvement")
     date_mouvement = models.DateTimeField(default=timezone.now)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         verbose_name = "Mouvement de Stock"

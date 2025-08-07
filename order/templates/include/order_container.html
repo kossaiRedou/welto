@@ -22,13 +22,33 @@
         evt.preventDefault();
         const btn = $(this);
         const url = btn.attr('data-href');
+        
+        // Désactiver le bouton pendant la requête
+        const originalText = btn.html();
+        btn.prop('disabled', true);
+        btn.html('<i class="bi bi-hourglass-split"></i>');
+        
         $.ajax({
             method: 'GET',
             url: url,
             dataType: 'json',
-
             success: function (data) {
-                $('#order_item_container').html(data.result)
+                if (data.success === false) {
+                    // Afficher l'erreur
+                    alert(data.error || 'Erreur lors de la modification');
+                    // Réactiver le bouton
+                    btn.prop('disabled', false);
+                    btn.html(originalText);
+                } else {
+                    // Mettre à jour la commande
+                    $('#order_item_container').html(data.result);
+                }
+            },
+            error: function() {
+                alert('Erreur de connexion. Veuillez réessayer.');
+                // Réactiver le bouton
+                btn.prop('disabled', false);
+                btn.html(originalText);
             }
         })
     });

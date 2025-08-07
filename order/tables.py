@@ -20,7 +20,7 @@ class OrderTable(tables.Table):
             </span>
         {% endif %}
         ''',
-        orderable=True,
+        orderable=False,
         verbose_name='Paiement'
     )
     action = tables.TemplateColumn(
@@ -41,15 +41,39 @@ class OrderTable(tables.Table):
 
 class ProductTable(tables.Table):
     tag_final_value = tables.Column(orderable=False, verbose_name='Price')
+    qty = tables.TemplateColumn(
+        '''
+        {% if record.qty > 5 %}
+            <span class="badge bg-success">{{ record.qty }}</span>
+        {% elif record.qty > 0 %}
+            <span class="badge bg-warning">{{ record.qty }}</span>
+        {% else %}
+            <span class="badge bg-danger">0</span>
+        {% endif %}
+        ''',
+        orderable=False,
+        verbose_name='Stock'
+    )
     action = tables.TemplateColumn(
-        '<button class="btn btn-info add_button" data-href="{% url "ajax_add" instance.id record.id %}">Add!</a>',
-        orderable=False
+        '''
+        {% if record.qty > 0 %}
+            <button class="btn btn-info add_button" data-href="{% url "ajax_add" instance.id record.id %}">
+                <i class="bi bi-plus-circle me-1"></i>Add
+            </button>
+        {% else %}
+            <button class="btn btn-secondary" disabled title="Stock épuisé">
+                <i class="bi bi-x-circle me-1"></i>Rupture
+            </button>
+        {% endif %}
+        ''',
+        orderable=False,
+        verbose_name='Action'
     )
 
     class Meta:
         model = Product
         template_name = 'django_tables2/bootstrap.html'
-        fields = ['title', 'category', 'tag_final_value']
+        fields = ['title', 'category', 'qty', 'tag_final_value']
 
 
 class OrderItemTable(tables.Table):

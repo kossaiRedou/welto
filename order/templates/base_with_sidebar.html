@@ -284,9 +284,20 @@
                 <i class="bi bi-clock-history"></i>
                 <span>Historique</span>
             </a>
-            <a href="/admin/" class="nav-link">
+            {% if user.is_manager %}
+            <a href="{% url 'users:user_list' %}" class="nav-link {% if 'users' in request.resolver_match.namespace|default:'' %}active{% endif %}">
+                <i class="bi bi-person-gear"></i>
+                <span>Utilisateurs</span>
+            </a>
+            {% endif %}
+            <!--a href="/admin/" class="nav-link">
                 <i class="bi bi-gear"></i>
                 <span>Admin</span>
+            </a-->
+            <hr style="border-color: rgba(255,255,255,0.2); margin: 20px 15px;">
+            <a href="{% url 'users:logout' %}" class="nav-link">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Déconnexion</span>
             </a>
         </nav>
     </div>

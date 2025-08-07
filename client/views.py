@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.utils.decorators import method_decorator
@@ -13,7 +14,7 @@ from .forms import ClientForm, ClientSearchForm
 import json
 
 
-@staff_member_required
+@login_required
 @require_http_methods(["GET"])
 def ajax_search_clients(request):
     """Recherche de clients par téléphone via AJAX"""
@@ -48,7 +49,7 @@ def ajax_search_clients(request):
     })
 
 
-@staff_member_required
+@login_required
 @require_http_methods(["POST"])
 def ajax_create_client(request):
     """Création rapide d'un client via AJAX"""
@@ -110,7 +111,7 @@ def ajax_create_client(request):
         })
 
 
-@staff_member_required
+@login_required
 def ajax_get_client_info(request, client_id):
     """Récupérer les informations détaillées d'un client via AJAX"""
     try:
@@ -231,7 +232,7 @@ class ClientDeleteView(DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-@staff_member_required
+@login_required
 def client_detail_view(request, pk):
     """Vue détaillée d'un client avec ses commandes"""
     client = get_object_or_404(Client, pk=pk)
@@ -263,7 +264,7 @@ def client_detail_view(request, pk):
     return render(request, 'client/client_detail.html', context)
 
 
-@staff_member_required
+@login_required
 def toggle_client_status(request, pk):
     """Activer/désactiver un client via AJAX"""
     if request.method == 'POST':

@@ -1,0 +1,411 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-person-plus me-2"></i>
+{{ title }}
+{% endblock %}
+
+{% block page_subtitle %}
+<small class="text-muted">Gérer les informations et permissions de l'utilisateur</small>
+{% endblock %}
+
+{% block header_actions %}
+<div class="btn-group" role="group">
+    <a href="{% url 'users:user_list' %}" class="btn btn-outline-primary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>
+        Retour Liste
+    </a>
+    {% if user %}
+    <a href="{% url 'users:user_profile' user.pk %}" class="btn btn-outline-info btn-sm">
+        <i class="bi bi-eye me-1"></i>
+        Voir Profil
+    </a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-form-card {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .user-form-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 25px rgba(0,0,0,0.12);
+    }
+    
+    .form-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .form-section h5 {
+        margin: 0;
+        font-weight: 600;
+    }
+    
+    .form-control {
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        padding: 12px 15px;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+    }
+    
+    .btn-submit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    .role-info {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 25px;
+    }
+    
+    .permissions-list {
+        list-style: none;
+        padding: 0;
+    }
+    
+    .permissions-list li {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .permissions-list li:last-child {
+        border-bottom: none;
+    }
+    
+    .permissions-list i {
+        margin-right: 10px;
+        width: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content_wrapper %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card user-form-card">
+                <form method="post" id="user-form">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <!-- Messages d'erreur/succès -->
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-{% if message.tags == 'success' %}check-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                        
+                        <!-- Informations de base -->
+                        <div class="form-section">
+                            <h5>
+                                <i class="bi bi-person me-2"></i>
+                                Informations de Base
+                            </h5>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Nom d'utilisateur *</label>
+                                    {{ form.username }}
+                                    {% if form.username.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.username.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Email *</label>
+                                    {{ form.email }}
+                                    {% if form.email.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.email.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Prénom *</label>
+                                    {{ form.first_name }}
+                                    {% if form.first_name.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.first_name.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Nom *</label>
+                                    {{ form.last_name }}
+                                    {% if form.last_name.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.last_name.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Téléphone</label>
+                                    {{ form.phone }}
+                                    {% if form.phone.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.phone.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Rôle *</label>
+                                    {{ form.role }}
+                                    {% if form.role.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.role.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Mot de passe (seulement pour la création) -->
+                        {% if is_create %}
+                        <div class="form-section">
+                            <h5>
+                                <i class="bi bi-key me-2"></i>
+                                Mot de Passe
+                            </h5>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Mot de passe *</label>
+                                    {{ form.password1 }}
+                                    {% if form.password1.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.password1.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.password1.help_text %}
+                                        <small class="text-white-50">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            {{ form.password1.help_text }}
+                                        </small>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-white">Confirmer le mot de passe *</label>
+                                    {{ form.password2 }}
+                                    {% if form.password2.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.password2.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Statut du compte (seulement pour la modification) -->
+                        {% if not is_create %}
+                        <div class="form-section">
+                            <h5>
+                                <i class="bi bi-toggle-on me-2"></i>
+                                Statut du Compte
+                            </h5>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label text-white" for="{{ form.is_active.id_for_label }}">
+                                            Compte actif
+                                        </label>
+                                    </div>
+                                    {% if form.is_active.errors %}
+                                        <div class="text-warning mt-1">
+                                            {% for error in form.is_active.errors %}
+                                                <small><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}</small>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Informations sur les rôles -->
+                        <div class="role-info">
+                            <h6 class="mb-3">
+                                <i class="bi bi-info-circle me-2"></i>
+                                Informations sur les Rôles
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary">Manager</h6>
+                                    <ul class="permissions-list">
+                                        <li><i class="bi bi-check-circle text-success"></i>Gestion complète des utilisateurs</li>
+                                        <li><i class="bi bi-check-circle text-success"></i>Gestion des produits et stocks</li>
+                                        <li><i class="bi bi-check-circle text-success"></i>Gestion des approvisionnements</li>
+                                        <li><i class="bi bi-check-circle text-success"></i>Accès aux analytics</li>
+                                        <li><i class="bi bi-check-circle text-success"></i>Gestion des commandes</li>
+                                        <li><i class="bi bi-check-circle text-success"></i>Gestion des clients</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-secondary">Employé</h6>
+                                    <ul class="permissions-list">
+                                        <li><i class="bi bi-check-circle text-success"></i>Création de commandes</li>
+                                        <li><i class="bi bi-check-circle text-success"></i>Modification des commandes (paiements)</li>
+                                        <li><i class="bi bi-check-circle text-success"></i>Gestion des clients</li>
+                                        <li><i class="bi bi-x-circle text-muted"></i>Gestion des utilisateurs</li>
+                                        <li><i class="bi bi-x-circle text-muted"></i>Gestion des produits</li>
+                                        <li><i class="bi bi-x-circle text-muted"></i>Accès aux analytics</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer text-center" style="background: transparent; border-top: none;">
+                        <button type="submit" class="btn btn-submit btn-lg">
+                            <i class="bi bi-check-circle me-2"></i>
+                            {% if is_create %}Créer l'Utilisateur{% else %}Modifier l'Utilisateur{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Validation en temps réel
+    $('#user-form').on('submit', function(e) {
+        const username = $('input[name="username"]').val().trim();
+        const email = $('input[name="email"]').val().trim();
+        const firstName = $('input[name="first_name"]').val().trim();
+        const lastName = $('input[name="last_name"]').val().trim();
+        const role = $('select[name="role"]').val();
+        
+        if (!username) {
+            e.preventDefault();
+            alert('Veuillez saisir un nom d\'utilisateur.');
+            return false;
+        }
+        
+        if (!email) {
+            e.preventDefault();
+            alert('Veuillez saisir une adresse email.');
+            return false;
+        }
+        
+        if (!firstName) {
+            e.preventDefault();
+            alert('Veuillez saisir un prénom.');
+            return false;
+        }
+        
+        if (!lastName) {
+            e.preventDefault();
+            alert('Veuillez saisir un nom.');
+            return false;
+        }
+        
+        if (!role) {
+            e.preventDefault();
+            alert('Veuillez sélectionner un rôle.');
+            return false;
+        }
+        
+        // Validation du mot de passe pour la création
+        {% if is_create %}
+        const password1 = $('input[name="password1"]').val();
+        const password2 = $('input[name="password2"]').val();
+        
+        if (!password1) {
+            e.preventDefault();
+            alert('Veuillez saisir un mot de passe.');
+            return false;
+        }
+        
+        if (password1 !== password2) {
+            e.preventDefault();
+            alert('Les mots de passe ne correspondent pas.');
+            return false;
+        }
+        
+        if (password1.length < 8) {
+            e.preventDefault();
+            alert('Le mot de passe doit contenir au moins 8 caractères.');
+            return false;
+        }
+        {% endif %}
+        
+        // Afficher un indicateur de chargement
+        const btn = $('.btn-submit');
+        const originalText = btn.html();
+        btn.prop('disabled', true).html('<i class="bi bi-hourglass-split me-2"></i>Traitement...');
+    });
+    
+    // Amélioration de l'UX pour le téléphone
+    $('input[name="phone"]').on('input', function() {
+        let value = $(this).val();
+        // Supprimer les caractères non numériques
+        value = value.replace(/\D/g, '');
+        $(this).val(value);
+    });
+    
+    // Focus automatique sur le premier champ
+    $('input[name="username"]').focus();
+});
+</script>
+{% endblock %} 

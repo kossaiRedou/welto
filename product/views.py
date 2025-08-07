@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 from django.db.models import Q
@@ -9,7 +10,7 @@ from .models import Product, Category, LOW_STOCK_THRESHOLD
 from .forms import SimpleProductForm, SimpleCategoryForm, QuickStockForm
 
 
-@staff_member_required
+@login_required
 def product_management_home(request):
     """Page d'accueil de la gestion des produits"""
     # Statistiques rapides
@@ -40,7 +41,7 @@ def product_management_home(request):
     return render(request, 'product/management_home.html', context)
 
 
-@staff_member_required
+@login_required
 def product_list(request):
     """Liste des produits avec recherche et filtres"""
     products = Product.objects.all().order_by('-id')
@@ -80,7 +81,7 @@ def product_list(request):
     return render(request, 'product/product_list.html', context)
 
 
-@staff_member_required
+@login_required
 def add_product(request):
     """Ajouter un nouveau produit"""
     if request.method == 'POST':
@@ -95,7 +96,7 @@ def add_product(request):
     return render(request, 'product/add_product.html', {'form': form})
 
 
-@staff_member_required
+@login_required
 def edit_product(request, pk):
     """Modifier un produit"""
     product = get_object_or_404(Product, pk=pk)
@@ -112,7 +113,7 @@ def edit_product(request, pk):
     return render(request, 'product/edit_product.html', {'form': form, 'product': product})
 
 
-@staff_member_required
+@login_required
 def delete_product(request, pk):
     """Supprimer un produit"""
     product = get_object_or_404(Product, pk=pk)
@@ -126,7 +127,7 @@ def delete_product(request, pk):
     return render(request, 'product/delete_product.html', {'product': product})
 
 
-@staff_member_required
+@login_required
 def quick_stock_update(request, pk):
     """Mise à jour rapide du stock d'un produit avec traçabilité"""
     product = get_object_or_404(Product, pk=pk)
@@ -276,7 +277,7 @@ def quick_stock_update(request, pk):
     return render(request, 'product/quick_stock.html', context)
 
 
-@staff_member_required
+@login_required
 def toggle_product_status(request, pk):
     """Activer/désactiver un produit"""
     product = get_object_or_404(Product, pk=pk)
@@ -289,7 +290,7 @@ def toggle_product_status(request, pk):
     return redirect('product:product_list')
 
 
-@staff_member_required
+@login_required
 def category_management(request):
     """Gestion des catégories"""
     categories = Category.objects.all().order_by('title')
@@ -311,7 +312,7 @@ def category_management(request):
     return render(request, 'product/category_management.html', context)
 
 
-@staff_member_required
+@login_required
 def delete_category(request, pk):
     """Supprimer une catégorie"""
     category = get_object_or_404(Category, pk=pk)
@@ -325,7 +326,7 @@ def delete_category(request, pk):
     return render(request, 'product/delete_category.html', {'category': category})
 
 
-@staff_member_required
+@login_required
 def ajax_product_search(request):
     """Recherche AJAX pour les produits"""
     query = request.GET.get('q', '')

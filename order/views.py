@@ -1,12 +1,13 @@
 from django.views.generic import ListView, CreateView, UpdateView
 from django.utils.decorators import method_decorator
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, reverse
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.template.loader import render_to_string
 from django.http import JsonResponse
-from django.db.models import Sum, Count, Avg
+from django.db.models import Sum, Count, Avg, Q
 from django_tables2 import RequestConfig
 from .models import Order, OrderItem, Payment, CURRENCY
 from decimal import Decimal
@@ -15,6 +16,8 @@ from product.models import Product, Category, LOW_STOCK_THRESHOLD
 from .tables import ProductTable, OrderItemTable, OrderTable
 
 import datetime
+import json
+from django.utils import timezone
 
 # Import pour les statistiques de dépenses
 try:
@@ -23,12 +26,29 @@ try:
 except ImportError:
     APROVISION_AVAILABLE = False
 
+# Import pour la vérification des utilisateurs
+try:
+    from users.models import User
+    USERS_AVAILABLE = True
+except ImportError:
+    USERS_AVAILABLE = False
 
-@method_decorator(staff_member_required, name='dispatch')
+
 class HomepageView(ListView):
     template_name = 'main_dashboard.html'
     model = Order
     queryset = Order.objects.all()[:10]
+
+    def dispatch(self, request, *args, **kwargs):
+        # Vérifier si la configuration initiale est nécessaire
+        if USERS_AVAILABLE and not User.objects.exists():
+            return redirect('users:setup')
+        
+        # Vérifier l'authentification
+        if not request.user.is_authenticated:
+            return redirect('users:login')
+        
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -187,7 +207,7 @@ class HomepageView(ListView):
         return context
 
 
-@staff_member_required
+@login_required
 def auto_create_order_view(request):
     new_order = Order.objects.create(
         title='Order 66',
@@ -199,11 +219,15 @@ def auto_create_order_view(request):
     return redirect(new_order.get_edit_url())
 
 
-@method_decorator(staff_member_required, name='dispatch')
 class OrderListView(ListView):
     template_name = 'list.html'
     model = Order
     paginate_by = 50
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('users:login')
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         qs = Order.objects.all()
@@ -219,11 +243,15 @@ class OrderListView(ListView):
         return context
 
 
-@method_decorator(staff_member_required, name='dispatch')
 class CreateOrderView(CreateView):
     template_name = 'form.html'
     form_class = OrderCreateForm
     model = Order
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('users:login')
+        return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         self.new_object.refresh_from_db()
@@ -255,11 +283,15 @@ class CreateOrderView(CreateView):
         return super().form_valid(form)
 
 
-@method_decorator(staff_member_required, name='dispatch')
 class OrderUpdateView(UpdateView):
     model = Order
     template_name = 'order_update.html'
     form_class = OrderEditForm
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('users:login')
+        return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         return reverse('update_order', kwargs={'pk': self.object.id})
@@ -276,7 +308,7 @@ class OrderUpdateView(UpdateView):
         return context
 
 
-@staff_member_required
+@login_required
 def delete_order(request, pk):
     instance = get_object_or_404(Order, id=pk)
     instance.delete()
@@ -284,7 +316,7 @@ def delete_order(request, pk):
     return redirect(reverse('homepage'))
 
 
-@staff_member_required
+@login_required
 def done_order_view(request, pk):
     instance = get_object_or_404(Order, id=pk)
     # Ne plus forcer is_paid = True automatiquement
@@ -293,10 +325,18 @@ def done_order_view(request, pk):
     return redirect(reverse('homepage'))
 
 
-@staff_member_required
+@login_required
 def ajax_add_product(request, pk, dk):
     instance = get_object_or_404(Order, id=pk)
     product = get_object_or_404(Product, id=dk)
+    
+    # Vérifier si le produit est en stock
+    if product.qty <= 0:
+        return JsonResponse({
+            'success': False,
+            'error': f'Le produit "{product.title}" est en rupture de stock'
+        })
+    
     order_item, created = OrderItem.objects.get_or_create(order=instance, product=product)
     if created:
         order_item.qty = 1
@@ -305,11 +345,19 @@ def ajax_add_product(request, pk, dk):
     else:
         order_item.qty += 1
     order_item.save()
+    
+    # Décrémenter le stock
     product.qty -= 1
     product.save()
+    
     instance.refresh_from_db()
     order_items = OrderItemTable(instance.order_items.all())
     RequestConfig(request).configure(order_items)
+    
+    # Mettre à jour aussi la liste des produits pour refléter le nouveau stock
+    products = ProductTable(Product.objects.filter(active=True)[:12])
+    RequestConfig(request).configure(products)
+    
     data = dict()
     data['result'] = render_to_string(template_name='include/order_container.html',
                                       request=request,
@@ -317,25 +365,56 @@ def ajax_add_product(request, pk, dk):
                                                'order_items': order_items
                                                }
                                     )
+    data['products'] = render_to_string(template_name='include/product_container.html',
+                                        request=request,
+                                        context={
+                                            'products': products,
+                                            'instance': instance
+                                        })
     return JsonResponse(data)
 
 
-@staff_member_required
+@login_required
 def ajax_modify_order_item(request, pk, action):
     order_item = get_object_or_404(OrderItem, id=pk)
     product = order_item.product
     instance = order_item.order
+    
     if action == 'remove':
         order_item.qty -= 1
         product.qty += 1
-        if order_item.qty < 1: order_item.qty = 1
-    if action == 'add':
+        if order_item.qty < 1: 
+            order_item.qty = 1
+    elif action == 'add':
+        # Vérifier si le produit est encore en stock
+        if product.qty <= 0:
+            return JsonResponse({
+                'success': False,
+                'error': f'Le produit "{product.title}" est en rupture de stock'
+            })
         order_item.qty += 1
         product.qty -= 1
+    elif action == 'delete':
+        # Remettre tout le stock quand on supprime l'item
+        product.qty += order_item.qty
+        order_item.delete()
+        product.save()
+        instance.refresh_from_db()
+        order_items = OrderItemTable(instance.order_items.all())
+        RequestConfig(request).configure(order_items)
+        data = dict()
+        data['result'] = render_to_string(template_name='include/order_container.html',
+                                          request=request,
+                                          context={
+                                              'instance': instance,
+                                              'order_items': order_items
+                                          }
+                                          )
+        return JsonResponse(data)
+    
     product.save()
     order_item.save()
-    if action == 'delete':
-        order_item.delete()
+    
     data = dict()
     instance.refresh_from_db()
     order_items = OrderItemTable(instance.order_items.all())
@@ -350,11 +429,11 @@ def ajax_modify_order_item(request, pk, action):
     return JsonResponse(data)
 
 
-@staff_member_required
+@login_required
 def ajax_search_products(request, pk):
     instance = get_object_or_404(Order, id=pk)
     q = request.GET.get('q', None)
-    products = Product.broswer.active().filter(title__startswith=q) if q else Product.broswer.active()
+    products = Product.browser.active().filter(title__startswith=q) if q else Product.browser.active()
     products = products[:12]
     products = ProductTable(products)
     RequestConfig(request).configure(products)
@@ -368,18 +447,44 @@ def ajax_search_products(request, pk):
     return JsonResponse(data)
 
 
-@staff_member_required
+@login_required
 def order_action_view(request, pk, action):
-    instance = get_object_or_404(Order, id=pk)
-    if action == 'is_paid':
-        instance.is_paid = True
-        instance.save()
+    """Vue pour les actions sur les commandes (supprimer, dupliquer, etc.)"""
+    order = get_object_or_404(Order, id=pk)
+    
     if action == 'delete':
-        instance.delete()
-    return redirect(reverse('homepage'))
+        order.delete()
+        messages.success(request, 'Commande supprimée avec succès.')
+        return redirect('order:order_list')
+    
+    elif action == 'duplicate':
+        # Créer une nouvelle commande basée sur l'ancienne
+        new_order = Order.objects.create(
+            title=f"Copie de {order.title}",
+            date=timezone.now().date(),
+            client=order.client,
+            is_paid=False
+        )
+        
+        # Copier les items
+        for item in order.order_items.all():
+            OrderItem.objects.create(
+                order=new_order,
+                product=item.product,
+                qty=item.qty,
+                unit_price=item.unit_price
+            )
+        
+        new_order.calculate_final_value()
+        new_order.save()
+        
+        messages.success(request, f'Commande dupliquée. Nouvelle commande #{new_order.id}')
+        return redirect('order:order_update', pk=new_order.id)
+    
+    return redirect('order:order_list')
 
 
-@staff_member_required
+@login_required
 def ajax_calculate_results_view(request):
     orders = Order.filter_data(request, Order.objects.all())
     total_value, total_paid_value, remaining_value, data = 0, 0, 0, dict()
@@ -396,7 +501,7 @@ def ajax_calculate_results_view(request):
     return JsonResponse(data)
 
 
-@staff_member_required
+@login_required
 def ajax_calculate_category_view(request):
     orders = Order.filter_data(request, Order.objects.all())
     order_items = OrderItem.objects.filter(order__in=orders)
@@ -414,7 +519,7 @@ def ajax_calculate_category_view(request):
 
 # === VUES POUR GESTION DES PAIEMENTS ===
 
-@staff_member_required
+@login_required
 def ajax_add_payment(request, pk):
     """Ajouter un paiement à une commande via AJAX"""
     order = get_object_or_404(Order, id=pk)
@@ -469,7 +574,7 @@ def ajax_add_payment(request, pk):
     return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})
 
 
-@staff_member_required
+@login_required
 def ajax_delete_payment(request, pk, payment_id):
     """Supprimer un paiement via AJAX"""
     order = get_object_or_404(Order, id=pk)
@@ -477,6 +582,7 @@ def ajax_delete_payment(request, pk, payment_id):
     
     if request.method == 'POST':
         try:
+            # Supprimer le paiement
             payment.delete()
             
             # Mettre à jour le statut is_paid de la commande
