@@ -304,6 +304,22 @@ class OrderUpdateView(UpdateView):
     def get_success_url(self):
         return reverse('update_order', kwargs={'pk': self.object.id})
 
+    def get(self, request, *args, **kwargs):
+        # Créer un instantané de l'état initial des items si non présent en session
+        response = super().get(request, *args, **kwargs)
+        order = self.object
+        session_key = f'order_snapshot_{order.id}'
+        if session_key not in request.session:
+            snapshot_items = [
+                {"product_id": item.product_id, "qty": int(item.qty)}
+                for item in order.order_items.all()
+            ]
+            request.session[session_key] = {
+                "items": snapshot_items,
+            }
+            request.session.modified = True
+        return response
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         instance = self.object
@@ -489,6 +505,72 @@ def order_action_view(request, pk, action):
         messages.success(request, f'Commande dupliquée. Nouvelle commande #{new_order.id}')
         return redirect('order:order_update', pk=new_order.id)
     
+    elif action == 'cancel':
+        # Annuler les modifications locales de la commande et restaurer l'état initial
+        session_key = f'order_snapshot_{order.id}'
+        snapshot = request.session.get(session_key)
+        if snapshot:
+            # Restaurer quantités à partir du snapshot
+            current_items = {it.product_id: it for it in order.order_items.all()}
+            desired = {d['product_id']: d['qty'] for d in snapshot.get('items', [])}
+
+            # Réajuster produits/stock en fonction des deltas
+            for product_id, order_item in current_items.items():
+                target_qty = desired.get(product_id, 0)
+                delta = order_item.qty - target_qty
+                if delta > 0:
+                    # Trop dans la commande → rendre au stock
+                    order_item.product.qty += delta
+                    order_item.product.save()
+                    if target_qty == 0:
+                        order_item.delete()
+                    else:
+                        order_item.qty = target_qty
+                        order_item.save()
+                elif delta < 0:
+                    # Pas assez dans la commande → reprendre du stock si possible
+                    need = -delta
+                    available = order_item.product.qty
+                    take = min(need, available)
+                    order_item.product.qty -= take
+                    order_item.product.save()
+                    order_item.qty = target_qty + (need - take)  # si stock insuffisant, on met au max possible
+                    if order_item.qty <= 0:
+                        order_item.delete()
+                    else:
+                        order_item.save()
+
+            # Ajouter les items manquants du snapshot
+            for product_id, target_qty in desired.items():
+                if product_id not in current_items:
+                    from product.models import Product
+                    try:
+                        product = Product.objects.get(id=product_id)
+                        take = min(target_qty, product.qty)
+                        if take > 0:
+                            product.qty -= take
+                            product.save()
+                            OrderItem.objects.create(
+                                order=order,
+                                product=product,
+                                qty=take,
+                                price=product.value,
+                                discount_price=product.discount_value
+                            )
+                    except Product.DoesNotExist:
+                        pass
+
+            # Nettoyer le snapshot
+            try:
+                del request.session[session_key]
+                request.session.modified = True
+            except KeyError:
+                pass
+
+            order.refresh_from_db()
+            messages.info(request, "Modifications annulées. Commande restaurée.")
+        return redirect('order_list')
+
     return redirect('order:order_list')
 
 

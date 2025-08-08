@@ -62,7 +62,8 @@ Modifier la commande
                             <form method="post" class="form">{% csrf_token %}
                                 {{ form }}
                                 <br>
-                                <button type="submit" class="btn btn-success">Save</button>
+                                <button type="submit" class="btn btn-success me-2">Save</button>
+                                <a href="{% url 'order_action' instance.id 'cancel' %}" class="btn btn-outline-secondary">Annuler</a>
                             </form>
                         </div>
                     </div>
