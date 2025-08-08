@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.core.exceptions import ValidationError
-from .models import User, UserProfile
+from .models import User, UserProfile, AppSetting
 
 class CustomUserCreationForm(UserCreationForm):
     """Formulaire de création d'utilisateur personnalisé"""
@@ -244,3 +244,17 @@ class PasswordChangeForm(forms.Form):
                 raise ValidationError('Le mot de passe doit contenir au moins 8 caractères.')
         
         return cleaned_data 
+
+
+class AppSettingForm(forms.ModelForm):
+    class Meta:
+        model = AppSetting
+        fields = ['currency_label', 'low_stock_threshold']
+        labels = {
+            'currency_label': "Devise (label)",
+            'low_stock_threshold': "Seuil d'alerte stock",
+        }
+        widgets = {
+            'currency_label': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ex: GMD, FCFA, €'}),
+            'low_stock_threshold': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+        }

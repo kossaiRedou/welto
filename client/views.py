@@ -8,8 +8,11 @@ from django.utils.decorators import method_decorator
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.db.models import Q, Count, Sum
+from datetime import datetime
+from order.models import OrderItem
 from django_tables2 import RequestConfig
 from .models import Client
+from users.models import AppSetting
 from .forms import ClientForm, ClientSearchForm
 import json
 
@@ -177,7 +180,7 @@ class ClientListView(ListView):
         context['total_clients'] = Client.objects.count()
         context['active_clients'] = Client.objects.filter(is_active=True).count()
         context['inactive_clients'] = Client.objects.filter(is_active=False).count()
-        
+        context['currency'] = AppSetting.get_currency_label()
         return context
 
 
@@ -237,13 +240,40 @@ def client_detail_view(request, pk):
     """Vue détaillée d'un client avec ses commandes"""
     client = get_object_or_404(Client, pk=pk)
     
-    # Statistiques du client
-    orders = client.orders.all().order_by('-date')
+    # Filtres de période (facultatifs)
+    date_debut_str = request.GET.get('date_debut')
+    date_fin_str = request.GET.get('date_fin')
+    date_debut = None
+    date_fin = None
+
+    try:
+        if date_debut_str:
+            date_debut = datetime.strptime(date_debut_str, '%Y-%m-%d').date()
+        if date_fin_str:
+            date_fin = datetime.strptime(date_fin_str, '%Y-%m-%d').date()
+    except ValueError:
+        # Si format invalide, ignorer les filtres
+        date_debut = None
+        date_fin = None
+
+    # Statistiques du client (appliquer filtres si fournis)
+    orders = client.orders.all()
+    if date_debut:
+        orders = orders.filter(date__gte=date_debut)
+    if date_fin:
+        orders = orders.filter(date__lte=date_fin)
+    orders = orders.order_by('-date')
     total_orders = orders.count()
     total_spent = orders.aggregate(Sum('final_value'))['final_value__sum'] or 0
     paid_orders = orders.filter(is_paid=True).count()
     unpaid_orders = orders.filter(is_paid=False).count()
-    unpaid_amount = orders.filter(is_paid=False).aggregate(Sum('final_value'))['final_value__sum'] or 0
+    
+    # Calculer le montant impayé en tenant compte des paiements échelonnés
+    # Montant impayé tenant compte des paiements échelonnés (sur la période)
+    unpaid_amount = sum(order.remaining_amount() for order in orders.filter(is_paid=False))
+
+    # Nouveau KPI: nombre de quantité commandée (sur la période)
+    total_qty_ordered = OrderItem.objects.filter(order__in=orders).aggregate(total=Sum('qty'))['total'] or 0
     
     # Dernières commandes (5 plus récentes)
     recent_orders = orders[:5]
@@ -258,7 +288,13 @@ def client_detail_view(request, pk):
             'paid_orders': paid_orders,
             'unpaid_orders': unpaid_orders,
             'unpaid_amount': unpaid_amount,
-        }
+            'total_qty_ordered': total_qty_ordered,
+        },
+        'currency': AppSetting.get_currency_label(),
+        'date_debut': date_debut,
+        'date_fin': date_fin,
+        'date_debut_str': date_debut_str or '',
+        'date_fin_str': date_fin_str or '',
     }
     
     return render(request, 'client/client_detail.html', context)

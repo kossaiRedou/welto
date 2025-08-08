@@ -120,7 +120,7 @@ Gestion des Produits
                                         </small>
                                     </div>
                                     <div class="text-end">
-                                        <div class="fw-bold">{{ product.final_value }} GMD</div>
+                                        <div class="fw-bold">{{ product.final_value }} {{currency}}</div>
                                         <span class="badge bg-{% if product.qty > 5 %}success{% elif product.qty > 0 %}warning{% else %}danger{% endif %} stock-badge">
                                             Stock: {{ product.qty }}
                                         </span>
@@ -147,7 +147,7 @@ Gestion des Produits
                         <div class="card-header bg-warning text-dark">
                             <h6 class="mb-0">
                                 <i class="bi bi-exclamation-triangle me-2"></i>
-                                Stock Faible (< 5 unités)
+                                Stock Faible ( < {{seuil_stock}} unités)
                             </h6>
                         </div>
                         <div class="card-body">

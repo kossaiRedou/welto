@@ -19,11 +19,11 @@
             <div class="card-body">
                 <p class="mb-2"><strong>Nom :</strong> {{ product.title }}</p>
                 <p class="mb-2"><strong>Catégorie :</strong> {{ product.category.title|default:"Sans catégorie" }}</p>
-                <p class="mb-2"><strong>Prix de vente :</strong> {{ product.final_value }} GMD</p>
+            <p class="mb-2"><strong>Prix de vente :</strong> {{ product.final_value }} {{ currency|default:'GMD' }}</p>
                 <p class="mb-2">
                     <strong>Prix d'achat :</strong> 
                     {% if product.prix_achat > 0 %}
-                        <span class="text-success">{{ product.prix_achat }} GMD</span>
+                    <span class="text-success">{{ product.prix_achat }} {{ currency|default:'GMD' }}</span>
                     {% else %}
                         <span class="text-muted">Non défini</span>
                     {% endif %}

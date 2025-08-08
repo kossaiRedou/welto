@@ -139,7 +139,7 @@ Gestion des Clients
                                         <span class="badge bg-info">{{ client.total_orders|default:0 }}</span>
                                     </td>
                                     <td>
-                                        <strong>{{ client.total_spent|default:0|floatformat:0 }} GMD</strong>
+                                        <strong>{{ client.total_spent|default:0|floatformat:0 }} {{ currency }}</strong>
                                     </td>
                                     <td>
                                         <span class="badge {% if client.is_active %}bg-success{% else %}bg-secondary{% endif %}">

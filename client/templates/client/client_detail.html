@@ -46,7 +46,7 @@ Détails Client
                     </div>
                     <div class="col-6">
                         <h5 class="mb-0 text-success">{{ stats.total_spent|floatformat:0 }}</h5>
-                        <small class="text-muted">GMD Dépensés</small>
+                        <small class="text-muted">{{ currency }} Dépensés</small>
                     </div>
                 </div>
             </div>
@@ -85,6 +85,29 @@ Détails Client
     
     <!-- Statistiques et commandes -->
     <div class="col-md-8">
+        <!-- Filtres période -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <form method="get" class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Date de début</label>
+                        <input type="date" name="date_debut" class="form-control" value="{{ date_debut_str }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Date de fin</label>
+                        <input type="date" name="date_fin" class="form-control" value="{{ date_fin_str }}">
+                    </div>
+                    <div class="col-md-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel me-1"></i>Appliquer
+                        </button>
+                        <a href="?" class="btn btn-outline-secondary" title="Réinitialiser">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
         <!-- Statistiques détaillées -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -115,7 +138,19 @@ Détails Client
                 <div class="card bg-danger text-white">
                     <div class="card-body text-center">
                         <h4 class="mb-0">{{ stats.unpaid_amount|floatformat:0 }}</h4>
-                        <small>GMD Impayés</small>
+                        <small>{{ currency }} Impayés</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs supplémentaires -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-secondary text-white">
+                    <div class="card-body text-center">
+                        <h4 class="mb-0">{{ stats.total_qty_ordered|default:0 }}</h4>
+                        <small>Quantité commandée</small>
                     </div>
                 </div>
             </div>
@@ -158,15 +193,25 @@ Détails Client
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <strong>{{ order.final_value|floatformat:2 }} GMD</strong>
+                                        <strong>{{ order.final_value|floatformat:2 }} {{ currency }}</strong>
                                         {% if order.discount > 0 %}
-                                            <br><small class="text-muted">Remise: {{ order.discount }} GMD</small>
+                                            <br><small class="text-muted">Remise: {{ order.discount }} {{ currency }}</small>
+                                        {% endif %}
+                                        {% if not order.is_paid and order.remaining_amount > 0 %}
+                                            <br><small class="text-danger">Reste: {{ order.remaining_amount|floatformat:2 }} {{ currency }}</small>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge {% if order.is_paid %}bg-success{% else %}bg-warning{% endif %}">
-                                            {% if order.is_paid %}Payé{% else %}Non Payé{% endif %}
-                                        </span>
+                                        {% if order.is_paid %}
+                                            <span class="badge bg-success">Payé</span>
+                                        {% else %}
+                                            {% if order.total_payments > 0 %}
+                                                <span class="badge bg-warning">Partiellement Payé</span>
+                                                <br><small class="text-muted">{{ order.payment_percentage|floatformat:1 }}%</small>
+                                            {% else %}
+                                                <span class="badge bg-danger">Non Payé</span>
+                                            {% endif %}
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <div class="btn-group btn-group-sm">

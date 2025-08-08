@@ -11,14 +11,14 @@ from order.views import (HomepageView, OrderUpdateView, CreateOrderView, delete_
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', HomepageView.as_view(), name='homepage'),
+    path('old_dasboard', HomepageView.as_view(), name='homepage'),
     
     # Gestion des utilisateurs
     path('users/', include('users.urls')),
     
     # Gestion des commandes
     path('order-list/', OrderListView.as_view(), name='order_list'),
-    path('create/', CreateOrderView.as_view(), name='create-order'),
+    path('', CreateOrderView.as_view(), name='create-order'),
     path('create-auto/', auto_create_order_view, name='create_auto'),
     path('update/<int:pk>/', OrderUpdateView.as_view(), name='update_order'),
     path('done/<int:pk>/', done_order_view, name='done_order'),

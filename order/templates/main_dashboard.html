@@ -32,7 +32,7 @@ Tableau de Bord
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="stats-card primary">
             <div class="stats-number">{{ today_sales|cut:" €"|default:"0" }}</div>
-            <div class="stats-label">GMD vendus aujourd'hui</div>
+            <div class="stats-label">{{ currency|default:'GMD' }} vendus aujourd'hui</div>
             {% if sales_evolution_positive %}
                 <div class="stats-change positive">
                     <i class="bi bi-arrow-up"></i> {{ sales_evolution }}
@@ -50,7 +50,7 @@ Tableau de Bord
             <div class="stats-number">{{ today_orders_count }}</div>
             <div class="stats-label">Ventes aujourd'hui</div>
             <div class="stats-change">
-                <i class="bi bi-info-circle"></i> Panier moyen: {{ avg_order_today|cut:" €" }} GMD
+                <i class="bi bi-info-circle"></i> Panier moyen: {{ avg_order_today|cut:" €" }} {{ currency|default:'GMD' }}
             </div>
         </div>
     </div>
@@ -58,7 +58,7 @@ Tableau de Bord
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="stats-card info">
             <div class="stats-number">{{ week_sales|cut:" €"|default:"0" }}</div>
-            <div class="stats-label">GMD cette semaine</div>
+            <div class="stats-label">{{ currency|default:'GMD' }} cette semaine</div>
             <div class="stats-change">
                 <i class="bi bi-calendar-week"></i> 7 derniers jours
             </div>
@@ -87,7 +87,7 @@ Tableau de Bord
     <div class="col-lg-3 col-md-6 mb-3">
         <div class="stats-card danger">
             <div class="stats-number">{{ today_expenses|cut:" GMD"|default:"0" }}</div>
-            <div class="stats-label">GMD dépensés aujourd'hui</div>
+            <div class="stats-label">{{ currency|default:'GMD' }} dépensés aujourd'hui</div>
             <div class="stats-change">
                 <i class="bi bi-cash-stack"></i>
             </div>
@@ -147,7 +147,7 @@ Tableau de Bord
                             </div>
                         </div>
                         <div class="sale-amount success">
-                            {{ order.final_value|floatformat:2 }} GMD
+                            {{ order.final_value|floatformat:2 }} {{ currency|default:'GMD' }}
                         </div>
                     </div>
                 {% endfor %}

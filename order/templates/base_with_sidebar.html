@@ -246,7 +246,7 @@
     <!-- Sidebar -->
     <div class="sidebar" id="sidebar">
         <div class="logo">
-            <a href="{% url 'homepage' %}">
+            <a href="{% url 'create-order' %}">
                 <img src="{% static 'assets/images/logo_bg.png' %}" alt="Logo" class="logo-img">
             </a>
             <div class="brand-info">
@@ -256,14 +256,19 @@
         </div>
         
         <nav>
-            <a href="{% url 'homepage' %}" class="nav-link {% if request.resolver_match.url_name == 'homepage' %}active{% endif %}">
+            <a href="{% url 'create-order' %}" class="nav-link {% if request.resolver_match.url_name == 'create-order' %}active{% endif %}">
                 <i class="bi bi-house-door"></i>
                 <span>Accueil</span>
             </a>
-            <a href="{% url 'create-order' %}" class="nav-link {% if request.resolver_match.url_name == 'create-order' %}active{% endif %}">
+            <!--a href="{% url 'create-order' %}" class="nav-link {% if request.resolver_match.url_name == 'create-order' %}active{% endif %}">
                 <i class="bi bi-plus-circle"></i>
                 <span>Nouvelle Vente</span>
+            </a-->
+            <a href="{% url 'order_list' %}" class="nav-link {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
+                <i class="bi bi-clock-history"></i>
+                <span>ventes</span>
             </a>
+            {% if user.is_manager %}
             <a href="{% url 'product:management_home' %}" class="nav-link {% if 'product' in request.resolver_match.namespace|default:'' %}active{% endif %}">
                 <i class="bi bi-box-seam"></i>
                 <span>Produits</span>
@@ -280,20 +285,39 @@
                 <i class="bi bi-graph-up"></i>
                 <span>Analytics</span>
             </a>
-            <a href="{% url 'order_list' %}" class="nav-link {% if request.resolver_match.url_name == 'order_list' %}active{% endif %}">
-                <i class="bi bi-clock-history"></i>
-                <span>Historique</span>
+            <a href="{% url 'users:app_settings' %}" class="nav-link">
+                <i class="bi bi-gear"></i>
+                <span>Paramètres</span>
             </a>
-            {% if user.is_manager %}
-            <a href="{% url 'users:user_list' %}" class="nav-link {% if 'users' in request.resolver_match.namespace|default:'' %}active{% endif %}">
+            
+            <a href="{% url 'users:user_list' %}" class="nav-link {% if 'users' in request.resolver_match.namespace|default:'' and request.resolver_match.url_name != 'app_settings' %}active{% endif %}">
                 <i class="bi bi-person-gear"></i>
                 <span>Utilisateurs</span>
             </a>
-            {% endif %}
-            <!--a href="/admin/" class="nav-link">
+            <a href="{% url 'users:app_settings' %}" class="nav-link {% if request.resolver_match.url_name == 'app_settings' %}active{% endif %}">
                 <i class="bi bi-gear"></i>
-                <span>Admin</span>
-            </a-->
+                <span>Paramètres</span>
+            </a>
+            {% else %}
+            <a href="" class="nav-link text-muted disabled" tabindex="-1" aria-disabled="true">
+                <i class="bi bi-box-seam"></i>
+                <span>Produits</span>
+            </a>
+            <a href="" class="nav-link text-muted disabled" tabindex="-1" aria-disabled="true">
+                <i class="bi bi-people"></i>
+                <span>Clients</span>
+            </a>
+            
+            <a href="" class="nav-link text-muted disabled" tabindex="-1" aria-disabled="true">
+                <i class="bi bi-boxes"></i>
+                <span>Approvisionnement</span>
+            </a>
+            
+            <a href="" class="nav-link text-muted disabled" tabindex="-1" aria-disabled="true">
+                <i class="bi bi-graph-up"></i>
+                <span>Analytics</span>
+            </a>
+            {% endif %}
             <hr style="border-color: rgba(255,255,255,0.2); margin: 20px 15px;">
             <a href="{% url 'users:logout' %}" class="nav-link">
                 <i class="bi bi-box-arrow-right"></i>

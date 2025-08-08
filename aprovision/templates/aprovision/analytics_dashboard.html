@@ -140,7 +140,7 @@ Dashboard Analytique
                 <div class="stat-number text-danger" id="total-depenses">
                     {{ total_depenses|floatformat:2 }}
                 </div>
-                <div class="stat-label">Total Dépenses (GMD)</div>
+                <div class="stat-label">Total Dépenses ({{ currency }})</div>
                 <small class="text-muted">Période sélectionnée</small>
             </div>
         </div>
@@ -153,7 +153,7 @@ Dashboard Analytique
                 <div class="stat-number text-success" id="total-ventes-argent">
                     {{ total_ventes_argent|floatformat:2 }}
                 </div>
-                <div class="stat-label">Total Ventes (GMD)</div>
+                <div class="stat-label">Total Ventes ({{ currency }})</div>
                 <small class="text-muted">Commandes payées</small>
             </div>
         </div>
@@ -166,7 +166,7 @@ Dashboard Analytique
                 <div class="stat-number {% if marge_beneficiaire >= 0 %}text-primary{% else %}text-danger{% endif %}" id="marge-beneficiaire">
                     {{ marge_beneficiaire|floatformat:2 }}
                 </div>
-                <div class="stat-label">Marge Bénéficiaire (GMD)</div>
+                <div class="stat-label">Marge Bénéficiaire ({{ currency }})</div>
                 <small class="text-muted">Revenus - Dépenses</small>
             </div>
         </div>
@@ -205,7 +205,7 @@ Dashboard Analytique
                 <div class="stat-number text-secondary" id="total-approvisionnements">
                     {{ total_approvisionnements|floatformat:2 }}
                 </div>
-                <div class="stat-label">Coût Approvisionnements (GMD)</div>
+                <div class="stat-label">Coût Approvisionnements ({{ currency }})</div>
                 <small class="text-muted">Période sélectionnée</small>
             </div>
         </div>
@@ -221,7 +221,7 @@ Dashboard Analytique
                 <div class="stat-number {% if benefice >= 0 %}text-success{% else %}text-danger{% endif %}" id="benefice">
                     {{ benefice|floatformat:2 }}
                 </div>
-                <div class="stat-label">Bénéfice (GMD)</div>
+                <div class="stat-label">Bénéfice ({{ currency }})</div>
                 <small class="text-muted">Ventes - Coût des Produits Vendus</small>
             </div>
         </div>
@@ -234,7 +234,7 @@ Dashboard Analytique
                 <div class="stat-number text-dark" id="reste-a-payer">
                     {{ reste_a_payer|floatformat:2 }}
                 </div>
-                <div class="stat-label">Reste à Payer (GMD)</div>
+                <div class="stat-label">Reste à Payer ({{ currency }})</div>
                 <small class="text-muted">Commandes impayées</small>
             </div>
         </div>
@@ -281,7 +281,7 @@ Dashboard Analytique
                             </div>
                         </div>
                         <div class="text-end">
-                                                         <strong>{{ type.total|floatformat:2 }} GMD</strong>
+                                                         <strong>{{ type.total|floatformat:2 }} {{ currency }}</strong>
                             <div class="progress progress-custom mt-1" style="width: 80px;">
                                 <div class="progress-bar" style="width: {{ type.pourcentage|floatformat:1 }}%; background-color: {{ type.type_depense__couleur }};"></div>
                             </div>
@@ -332,7 +332,7 @@ Dashboard Analytique
                         <small class="text-muted d-block">Montant total</small>
                     </div>
                     <div class="text-end">
-                                                 <strong>{{ total_ventes_argent|floatformat:2 }} GMD</strong>
+                                                  <strong>{{ total_ventes_argent|floatformat:2 }} {{ currency }}</strong>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -360,7 +360,7 @@ Dashboard Analytique
                         <small class="text-muted d-block">Par commande</small>
                     </div>
                     <div class="text-end">
-                                                 <strong>{{ panier_moyen|floatformat:2 }} GMD</strong>
+                                                  <strong>{{ panier_moyen|floatformat:2 }} {{ currency }}</strong>
                     </div>
                 </div>
                 {% endif %}
@@ -473,7 +473,7 @@ Dashboard Analytique
                                     <span class="badge bg-info">{{ stat.stock_total|default:0 }}</span>
                                 </td>
                                 <td>
-                                                                         <span class="badge bg-success">{{ stat.valeur_stock|default:0|floatformat:2 }} GMD</span>
+                                                                          <span class="badge bg-success">{{ stat.valeur_stock|default:0|floatformat:2 }} {{ currency }}</span>
                                 </td>
                                 <td>
                                     <span class="badge bg-success">{{ stat.mouvements_entree }}</span>
@@ -521,7 +521,7 @@ Dashboard Analytique
                                 <div class="mt-1">
                                     <span class="badge bg-danger">{{ produit.qty }} en stock</span>
                                     {% if produit.prix_achat > 0 %}
-                                        <span class="badge bg-secondary">{{ produit.prix_achat }} GMD</span>
+                                        <span class="badge bg-secondary">{{ produit.prix_achat }} {{ currency }}</span>
                                     {% endif %}
                                 </div>
                             </div>

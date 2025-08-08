@@ -123,7 +123,7 @@ Dashboard Approvisionnement
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title text-muted mb-2">Total Dépenses</h6>
-                        <h3 class="mb-0">{{ total_depenses|floatformat:0 }} FCFA</h3>
+                        <h3 class="mb-0">{{ total_depenses|floatformat:0 }} {{ currency }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="bi bi-cash-stack text-danger" style="font-size: 2rem;"></i>
@@ -139,7 +139,7 @@ Dashboard Approvisionnement
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="card-title text-muted mb-2">Coût Approvisionnements</h6>
-                        <h3 class="mb-0">{{ cout_approvisionnements|floatformat:0 }} FCFA</h3>
+                        <h3 class="mb-0">{{ cout_approvisionnements|floatformat:0 }} {{ currency }}</h3>
                     </div>
                     <div class="align-self-center">
                         <i class="bi bi-box-seam text-success" style="font-size: 2rem;"></i>
@@ -158,7 +158,7 @@ Dashboard Approvisionnement
                         <h3 class="mb-0">{{ produits_stock_faible|length }}</h3>
                     </div>
                     <div class="align-self-center">
-                        <i class="bi bi-exclamation-triangle text-info" style="font-size: 2rem;"></i>
+                        <i class="bi bi-exclamation-triangle " style="font-size: 2rem; color: red;"></i>
                     </div>
                 </div>
             </div>
@@ -205,7 +205,7 @@ Dashboard Approvisionnement
                             </div>
                         </div>
                         <div class="text-end">
-                            <strong>{{ type.total|floatformat:0 }} FCFA</strong>
+                            <strong>{{ type.total|floatformat:0 }} {{ currency }}</strong>
                             {% if total_depenses > 0 %}
                                 <div class="progress progress-thin mt-1" style="width: 100px;">
                                     <div class="progress-bar" style="width: {{ type.pourcentage|floatformat:1 }}%; background-color: {{ type.type_depense__couleur }};"></div>
@@ -333,7 +333,7 @@ Dashboard Approvisionnement
                                         </div>
                                     </td>
                                     <td class="text-end">
-                                        <strong>{{ depense.montant|floatformat:0 }} FCFA</strong>
+                                        <strong>{{ depense.montant|floatformat:0 }} {{ currency }}</strong>
                                         <small class="text-muted d-block">{{ depense.date_depense|date:"d/m/Y" }}</small>
                                     </td>
                                 </tr>
@@ -433,7 +433,7 @@ function refreshDashboardStats() {
         },
         success: function(response) {
             // Mettre à jour le total des dépenses
-            $('.stat-card.danger .stats-number').html(response.total_depenses.toLocaleString() + ' FCFA');
+            $('.stat-card.danger .stats-number').html(response.total_depenses.toLocaleString() + ' {{ currency }}');
             
             // Mettre à jour les dépenses par type
             updateExpenseChart(response.depenses_par_type, response.total_depenses);
@@ -474,7 +474,7 @@ function updateExpenseChart(depensesParType, totalDepenses) {
                     </div>
                 </div>
                 <div class="text-end">
-                    <strong>${type.total.toLocaleString()} FCFA</strong>
+                    <strong>${type.total.toLocaleString()} {{ currency }}</strong>
                     ${totalDepenses > 0 ? `
                         <div class="progress progress-thin mt-1" style="width: 100px;">
                             <div class="progress-bar" style="width: ${type.pourcentage.toFixed(1)}%; background-color: ${type.type_depense__couleur};"></div>

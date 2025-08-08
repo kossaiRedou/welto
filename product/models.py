@@ -1,11 +1,26 @@
 from django.db import models
 from django.conf import settings
+try:
+    from users.models import AppSetting
+except Exception:
+    AppSetting = None
 from .managers import ProductManager
 
-CURRENCY = settings.CURRENCY
+def get_currency_label():
+    try:
+        if AppSetting:
+            return AppSetting.get_currency_label()
+    except Exception:
+        pass
+    from django.conf import settings as dj_settings
+    return getattr(dj_settings, 'CURRENCY', 'GMD')
 
-# Constante pour le seuil de stock faible
-LOW_STOCK_THRESHOLD = 5
+# Seuil de stock faible depuis les paramètres
+def get_low_stock_threshold():
+    try:
+        return AppSetting.get_low_stock_threshold()
+    except Exception:
+        return 5
 
 
 class Category(models.Model):
@@ -29,7 +44,7 @@ class Product(models.Model):
     prix_achat = models.DecimalField(default=0.00, decimal_places=2, max_digits=10, help_text="Prix d'achat unitaire (pour la traçabilité)")
 
     objects = models.Manager()
-    broswer = ProductManager()
+    browser = ProductManager()
 
     class Meta:
         verbose_name_plural = 'Products'
@@ -42,11 +57,11 @@ class Product(models.Model):
         return self.title
 
     def tag_final_value(self):
-        return f'{self.final_value} {CURRENCY}'
+        return f'{self.final_value} {get_currency_label()}'
     tag_final_value.short_description = 'Value'
     
     def tag_prix_achat(self):
         if self.prix_achat > 0:
-            return f'{self.prix_achat} {CURRENCY}'
+            return f'{self.prix_achat} {get_currency_label()}'
         return 'Non défini'
     tag_prix_achat.short_description = 'Prix d\'achat'

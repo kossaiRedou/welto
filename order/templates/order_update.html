@@ -77,7 +77,20 @@ Modifier la commande
                         </div>
                     </div>
                 </div>
-                    
+                
+                <!-- Actions commande: Done / Delete après Paiements -->
+                <div class="col-md-12 mt-3">
+                    <div class="card">
+                        <div class="card-body text-end">
+                            <a href="{% url 'done_order' instance.id %}" class="btn btn-success me-2" type="submit">
+                                <i class="bi bi-check2-circle me-1"></i>Terminer
+                            </a>
+                            <a onclick="return confirm('Supprimer cette commande ?')" href="{% url 'delete_order' instance.id %}" class="btn btn-danger">
+                                <i class="bi bi-trash me-1"></i>Supprimer
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         </div>

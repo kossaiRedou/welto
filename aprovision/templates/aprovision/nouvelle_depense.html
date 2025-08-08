@@ -232,7 +232,7 @@ Nouvelle Dépense
                                 Montant
                             </h5>
                             <div class="mt-3">
-                                <label class="form-label text-white">Montant en GMD *</label>
+                                <label class="form-label text-white">Montant en {{ currency|default:'GMD' }} *</label>
                                 <div class="input-group">
                                     <input type="number" 
                                            name="montant" 
@@ -241,7 +241,7 @@ Nouvelle Dépense
                                            min="0" 
                                            step="0.01" 
                                            required>
-                                    <span class="input-group-text">GMD</span>
+                                    <span class="input-group-text">{{ currency|default:'GMD' }}</span>
                                 </div>
                                 <small class="text-white-50">
                                     <i class="bi bi-info-circle me-1"></i>

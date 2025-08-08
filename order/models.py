@@ -1,6 +1,10 @@
 from django.db import models
 from django.db.models import Sum
 from django.conf import settings
+try:
+    from users.models import AppSetting
+except Exception:
+    AppSetting = None
 from django.urls import reverse
 from django.dispatch import receiver
 from django.db.models.signals import post_delete
@@ -8,7 +12,13 @@ import datetime
 from product.models import Product
 
 from decimal import Decimal
-CURRENCY = settings.CURRENCY
+def get_currency_label():
+    try:
+        if AppSetting:
+            return AppSetting.get_currency_label()
+    except Exception:
+        pass
+    return settings.CURRENCY
 
 
 class OrderManager(models.Manager):
@@ -99,13 +109,13 @@ class Order(models.Model):
         return reverse('delete_order', kwargs={'pk': self.id})
 
     def tag_final_value(self):
-        return f'{self.final_value} {CURRENCY}'
+        return f'{self.final_value} {get_currency_label()}'
 
     def tag_discount(self):
-        return f'{self.discount} {CURRENCY}'
+        return f'{self.discount} {get_currency_label()}'
 
     def tag_value(self):
-        return f'{self.value} {CURRENCY}'
+        return f'{self.value} {get_currency_label()}'
     
     def total_payments(self):
         """Calcule le total des paiements reçus"""
@@ -129,10 +139,10 @@ class Order(models.Model):
         return self.remaining_amount() <= Decimal('0.00')
     
     def tag_total_payments(self):
-        return f'{self.total_payments()} {CURRENCY}'
+        return f'{self.total_payments()} {get_currency_label()}'
     
     def tag_remaining_amount(self):
-        return f'{self.remaining_amount()} {CURRENCY}'
+        return f'{self.remaining_amount()} {get_currency_label()}'
     
     def client_display(self):
         """Affichage du client pour les templates"""
@@ -236,7 +246,7 @@ class Payment(models.Model):
         return f'{self.amount} {CURRENCY} - {self.get_method_display()}'
 
     def tag_amount(self):
-        return f'{self.amount} {CURRENCY}'
+        return f'{self.amount} {get_currency_label()}'
 
 
 @receiver(post_delete, sender=OrderItem)

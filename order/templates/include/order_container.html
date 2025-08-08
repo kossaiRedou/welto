@@ -11,11 +11,7 @@
         <h3><b>Total :</b> {{ instance.tag_final_value }}</h3>
     </div>
     <div class="clearfix"></div>
-    <hr>
-    <div class="text-right">
-        <a href="{% url 'done_order' instance.id %}" class="btn btn-success" type="submit"> Done </a>
-        <a onclick="return confirm('Are you sure?')" href="{% url 'delete_order' instance.id %}" class="btn btn-danger">Delete</a>
-    </div>
+    
 </div>
 <script>
     $('.edit_button').click(function (evt) {

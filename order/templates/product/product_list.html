@@ -92,11 +92,11 @@ Liste des Produits
 
                         <div class="price-info mb-3">
                             {% if product.discount_value > 0 %}
-                                <span class="text-decoration-line-through text-muted">{{ product.value }} GMD</span>
-                                <span class="text-success ms-2">{{ product.discount_value }} GMD</span>
+                                <span class="text-decoration-line-through text-muted">{{ product.value }} {{ currency|default:'GMD' }}</span>
+                                <span class="text-success ms-2">{{ product.discount_value }} {{ currency|default:'GMD' }}</span>
                                 <small class="badge bg-success ms-1">Promo</small>
                             {% else %}
-                                <span class="text-primary">{{ product.value }} GMD</span>
+                                <span class="text-primary">{{ product.value }} {{ currency|default:'GMD' }}</span>
                             {% endif %}
                         </div>
 

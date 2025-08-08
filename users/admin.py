@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
-from .models import User, UserProfile
+from .models import User, UserProfile, AppSetting
 
 
 class UserProfileInline(admin.StackedInline):
@@ -149,3 +149,8 @@ class UserProfileAdmin(admin.ModelAdmin):
         if obj is None:
             return request.user.is_manager() or request.user.is_superuser
         return (request.user.is_manager() and obj.user.created_by == request.user) or request.user.is_superuser
+
+
+@admin.register(AppSetting)
+class AppSettingAdmin(admin.ModelAdmin):
+    list_display = ('currency_label', 'low_stock_threshold', 'updated_at')

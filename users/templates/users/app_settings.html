@@ -1,0 +1,36 @@
+{% extends 'base_with_sidebar.html' %}
+
+{% block title %}Paramètres de l'application{% endblock %}
+
+{% block page_title %}
+<i class="bi bi-gear me-2"></i>
+Paramètres de l'application
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Paramètres généraux</div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label">{{ form.currency_label.label }}</label>
+            {{ form.currency_label }}
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{{ form.low_stock_threshold.label }}</label>
+            {{ form.low_stock_threshold }}
+          </div>
+          <button class="btn btn-primary" type="submit">
+            <i class="bi bi-save me-1"></i>Enregistrer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+

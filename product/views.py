@@ -6,8 +6,9 @@ from django.utils.decorators import method_decorator
 from django.views.generic import ListView
 from django.db.models import Q
 from django.http import JsonResponse
-from .models import Product, Category, LOW_STOCK_THRESHOLD
+from .models import Product, Category, get_low_stock_threshold
 from .forms import SimpleProductForm, SimpleCategoryForm, QuickStockForm
+from users.models import AppSetting
 
 
 @login_required
@@ -15,7 +16,7 @@ def product_management_home(request):
     """Page d'accueil de la gestion des produits"""
     # Statistiques rapides
     total_products = Product.objects.filter(active=True).count()
-    low_stock = Product.objects.filter(active=True, qty__lt=LOW_STOCK_THRESHOLD).count()
+    low_stock = Product.objects.filter(active=True, qty__lt=get_low_stock_threshold()).count()
     out_of_stock = Product.objects.filter(active=True, qty=0).count()
     categories_count = Category.objects.count()
     
@@ -23,7 +24,7 @@ def product_management_home(request):
     recent_products = Product.objects.filter(active=True).order_by('-id')[:5]
     
     # Produits en stock faible
-    low_stock_products = Product.objects.filter(active=True, qty__lt=LOW_STOCK_THRESHOLD, qty__gt=0)[:10]
+    low_stock_products = Product.objects.filter(active=True, qty__lt=get_low_stock_threshold(), qty__gt=0)[:10]
     
     # Produits en rupture
     out_of_stock_products = Product.objects.filter(active=True, qty=0)[:10]
@@ -36,6 +37,8 @@ def product_management_home(request):
         'recent_products': recent_products,
         'low_stock_products': low_stock_products,
         'out_of_stock_products': out_of_stock_products,
+        'seuil_stock': get_low_stock_threshold(),
+        'currency': AppSetting.get_currency_label(),
     }
     
     return render(request, 'product/management_home.html', context)
@@ -76,6 +79,7 @@ def product_list(request):
         'search': search,
         'selected_category': category_id,
         'status': status,
+        'currency': AppSetting.get_currency_label(),
     }
     
     return render(request, 'product/product_list.html', context)
@@ -110,7 +114,7 @@ def edit_product(request, pk):
     else:
         form = SimpleProductForm(instance=product)
     
-    return render(request, 'product/edit_product.html', {'form': form, 'product': product})
+    return render(request, 'product/edit_product.html', {'form': form, 'product': product,})
 
 
 @login_required

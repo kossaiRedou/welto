@@ -23,6 +23,8 @@ urlpatterns = [
     # Profil personnel (tous les utilisateurs)
     path('my-profile/', views.my_profile_view, name='my_profile'),
     path('my-password/', views.my_password_change_view, name='my_password_change'),
+    # Paramètres application (manager)
+    path('settings/', views.app_settings_view, name='app_settings'),
     
     # AJAX endpoints
     path('ajax/toggle-status/<int:pk>/', views.ajax_user_status_toggle, name='ajax_user_status_toggle'),

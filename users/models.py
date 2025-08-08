@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
+from django.utils.translation import gettext_lazy as _
 
 class User(AbstractUser):
     """Modèle utilisateur personnalisé avec rôles"""
@@ -143,3 +144,39 @@ class UserProfile(models.Model):
     
     def __str__(self):
         return f"Profil de {self.user.get_full_name()}"
+
+
+class AppSetting(models.Model):
+    """Paramètres globaux personnalisables par le manager"""
+    currency_label = models.CharField(
+        max_length=10,
+        default='GMD',
+        verbose_name=_('Devise (label)'),
+        help_text=_('Exemple: GMD, FCFA, CFA, €')
+    )
+    low_stock_threshold = models.PositiveIntegerField(
+        default=5,
+        verbose_name=_('Seuil d\'alerte stock'),
+        help_text=_('Stock sous lequel un produit est considéré en stock faible')
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _('Paramètre de l\'application')
+        verbose_name_plural = _('Paramètres de l\'application')
+
+    def __str__(self):
+        return f"Paramètres ({self.currency_label}, seuil {self.low_stock_threshold})"
+
+    @classmethod
+    def get_solo(cls) -> 'AppSetting':
+        obj, _ = cls.objects.get_or_create(id=1)
+        return obj
+
+    @classmethod
+    def get_currency_label(cls) -> str:
+        return cls.get_solo().currency_label or 'GMD'
+
+    @classmethod
+    def get_low_stock_threshold(cls) -> int:
+        return cls.get_solo().low_stock_threshold or 5

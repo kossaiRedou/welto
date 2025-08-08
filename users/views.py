@@ -11,10 +11,10 @@ from django.urls import reverse_lazy
 from django.utils.decorators import method_decorator
 from django.contrib.admin.views.decorators import staff_member_required
 
-from .models import User, UserProfile
+from .models import User, UserProfile, AppSetting
 from .forms import (
     CustomUserCreationForm, CustomUserChangeForm, UserProfileForm,
-    UserSearchForm, PasswordChangeForm
+    UserSearchForm, PasswordChangeForm, AppSettingForm
 )
 
 
@@ -56,7 +56,7 @@ def setup_view(request):
                 'Votre compte manager a été créé avec succès.'
             )
             
-            return redirect('homepage')
+            return redirect('create-order')
     else:
         form = CustomUserCreationForm()
         # Pré-remplir avec des valeurs par défaut
@@ -70,7 +70,7 @@ def setup_view(request):
 def login_view(request):
     """Vue de connexion personnalisée"""
     if request.user.is_authenticated:
-        return redirect('homepage')
+        return redirect('create-order')
     
     # Vérifier si la configuration initiale est nécessaire
     if not User.objects.exists():
@@ -85,12 +85,12 @@ def login_view(request):
             if user is not None:
                 if user.is_active:
                     login(request, user)
-                    next_url = request.GET.get('next', 'homepage')
+                    next_url = request.GET.get('next', 'create-order')
                     
                     # Vérifier que l'URL de redirection est valide
                     if next_url and next_url.startswith('/admin/'):
                         # Si c'est l'admin, rediriger vers la page d'accueil
-                        next_url = 'homepage'
+                        next_url = 'create-order'
                     
                     return redirect(next_url)
                 else:
@@ -117,7 +117,7 @@ def manager_required(view_func):
             return redirect('users:login')
         if not request.user.is_manager():
             messages.error(request, 'Accès refusé. Vous devez être manager.')
-            return redirect('homepage')
+            return redirect('create-order')
         return view_func(request, *args, **kwargs)
     return wrapper
 
@@ -136,7 +136,7 @@ def dashboard_view(request):
     """Dashboard principal pour la gestion des utilisateurs"""
     if not request.user.is_manager():
         messages.error(request, 'Accès refusé. Vous devez être manager.')
-        return redirect('homepage')
+        return redirect('create-order')
     
     # Statistiques
     total_users = User.objects.count()
@@ -159,11 +159,31 @@ def dashboard_view(request):
 
 
 @login_required
+def app_settings_view(request):
+    """Paramètres globaux (devise, seuil de stock) - accessible au manager"""
+    if not request.user.is_manager():
+        messages.error(request, 'Accès refusé. Vous devez être manager.')
+        return redirect('create-order')
+
+    settings_obj = AppSetting.get_solo()
+    if request.method == 'POST':
+        form = AppSettingForm(request.POST, instance=settings_obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Paramètres enregistrés avec succès.')
+            return redirect('users:app_settings')
+    else:
+        form = AppSettingForm(instance=settings_obj)
+
+    return render(request, 'users/app_settings.html', {'form': form, 'title': 'Paramètres de l\'application'})
+
+
+@login_required
 def user_list_view(request):
     """Liste des utilisateurs avec filtres"""
     if not request.user.is_manager():
         messages.error(request, 'Accès refusé. Vous devez être manager.')
-        return redirect('homepage')
+        return redirect('create-order')
     
     # Formulaire de recherche
     search_form = UserSearchForm(request.GET)
@@ -210,7 +230,7 @@ def user_create_view(request):
     """Création d'un nouvel utilisateur"""
     if not request.user.is_manager():
         messages.error(request, 'Accès refusé. Vous devez être manager.')
-        return redirect('homepage')
+        return redirect('create-order')
     
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST, request_user=request.user)
@@ -240,7 +260,7 @@ def user_update_view(request, pk):
     """Modification d'un utilisateur"""
     if not request.user.is_manager():
         messages.error(request, 'Accès refusé. Vous devez être manager.')
-        return redirect('homepage')
+        return redirect('create-order')
     
     user = get_object_or_404(User, pk=pk)
     
@@ -273,7 +293,7 @@ def user_delete_view(request, pk):
     """Suppression d'un utilisateur"""
     if not request.user.is_manager():
         messages.error(request, 'Accès refusé. Vous devez être manager.')
-        return redirect('homepage')
+        return redirect('create-order')
     
     user = get_object_or_404(User, pk=pk)
     
@@ -300,7 +320,7 @@ def user_profile_view(request, pk):
     """Profil détaillé d'un utilisateur"""
     if not request.user.is_manager():
         messages.error(request, 'Accès refusé. Vous devez être manager.')
-        return redirect('homepage')
+        return redirect('create-order')
     
     user = get_object_or_404(User, pk=pk)
     profile, created = UserProfile.objects.get_or_create(user=user)
@@ -332,7 +352,7 @@ def change_password_view(request, pk):
     # Vérifier les permissions
     if not request.user.is_manager() and request.user != user:
         messages.error(request, 'Accès refusé.')
-        return redirect('homepage')
+        return redirect('create-order')
     
     if request.method == 'POST':
         form = PasswordChangeForm(request.POST)

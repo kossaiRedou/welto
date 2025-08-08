@@ -9,10 +9,10 @@ from django.template.loader import render_to_string
 from django.http import JsonResponse
 from django.db.models import Sum, Count, Avg, Q
 from django_tables2 import RequestConfig
-from .models import Order, OrderItem, Payment, CURRENCY
+from .models import Order, OrderItem, Payment, get_currency_label
 from decimal import Decimal
 from .forms import OrderCreateForm, OrderEditForm
-from product.models import Product, Category, LOW_STOCK_THRESHOLD
+from product.models import Product, Category, get_low_stock_threshold
 from .tables import ProductTable, OrderItemTable, OrderTable
 
 import datetime
@@ -32,6 +32,14 @@ try:
     USERS_AVAILABLE = True
 except ImportError:
     USERS_AVAILABLE = False
+
+
+# Devise dynamique (fallback sur settings.CURRENCY)
+try:
+    CURRENCY = get_currency_label()
+except Exception:
+    from django.conf import settings as dj_settings
+    CURRENCY = getattr(dj_settings, 'CURRENCY', 'GMD')
 
 
 class HomepageView(ListView):
@@ -100,8 +108,8 @@ class HomepageView(ListView):
             .annotate(total_qty=Sum('qty'), total_revenue=Sum('total_price'))\
             .order_by('-total_qty')[:5]
             
-        # Stock faible (moins de 5 unités)
-        low_stock = Product.objects.filter(active=True, qty__lt=LOW_STOCK_THRESHOLD).count()
+        # Stock faible (seuil dynamique)
+        low_stock = Product.objects.filter(active=True, qty__lt=get_low_stock_threshold()).count()
         
         # Produits en rupture
         out_of_stock = Product.objects.filter(active=True, qty=0).count()
@@ -313,7 +321,7 @@ def delete_order(request, pk):
     instance = get_object_or_404(Order, id=pk)
     instance.delete()
     messages.warning(request, 'The order is deleted!')
-    return redirect(reverse('homepage'))
+    return redirect(reverse('create-order'))
 
 
 @login_required
@@ -322,7 +330,7 @@ def done_order_view(request, pk):
     # Ne plus forcer is_paid = True automatiquement
     # instance.is_paid = True  # Commenté pour éviter le marquage automatique
     # instance.save()
-    return redirect(reverse('homepage'))
+    return redirect(reverse('create-order'))
 
 
 @login_required
@@ -534,7 +542,11 @@ def ajax_add_payment(request, pk):
                 return JsonResponse({'success': False, 'error': 'Le montant doit être supérieur à 0'})
             
             # Vérifier que le paiement ne dépasse pas le montant restant
-            remaining = order.remaining_amount()
+            # Recalculer le montant restant à partir des items (sans nécessiter de "Save")
+            items_total = order.order_items.aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+            final_now = (Decimal(items_total) - Decimal(order.discount))
+            total_paid_now = order.total_payments()
+            remaining = max(Decimal('0.00'), final_now - total_paid_now)
             if amount > remaining:
                 return JsonResponse({
                     'success': False, 
@@ -549,9 +561,11 @@ def ajax_add_payment(request, pk):
                 note=note
             )
             
-            # Mettre à jour le statut is_paid de la commande
-            order.is_paid = order.is_fully_paid()
-            order.save()
+            # Mettre à jour le statut is_paid de la commande sans dépendre de final_value
+            total_paid_after = total_paid_now + amount
+            is_paid_now = total_paid_after >= final_now and final_now > Decimal('0.00')
+            Order.objects.filter(id=order.id).update(is_paid=is_paid_now)
+            order.refresh_from_db()
             
             # Retourner les données mises à jour
             payments_html = render_to_string('include/payments_container.html', {
@@ -563,9 +577,9 @@ def ajax_add_payment(request, pk):
                 'success': True,
                 'payments_html': payments_html,
                 'total_payments': str(order.total_payments()),
-                'remaining_amount': str(order.remaining_amount()),
-                'payment_percentage': round(order.payment_percentage(), 1),
-                'is_fully_paid': order.is_fully_paid()
+                'remaining_amount': str(max(Decimal('0.00'), final_now - order.total_payments())),
+                'payment_percentage': round((order.total_payments() / final_now * 100) if final_now > 0 else 0, 1),
+                'is_fully_paid': order.is_paid
             })
             
         except Exception as e:
@@ -585,9 +599,13 @@ def ajax_delete_payment(request, pk, payment_id):
             # Supprimer le paiement
             payment.delete()
             
-            # Mettre à jour le statut is_paid de la commande
-            order.is_paid = order.is_fully_paid()
-            order.save()
+            # Mettre à jour le statut is_paid de la commande sans dépendre d'un "Save" préalable
+            items_total = order.order_items.aggregate(total=Sum('total_price'))['total'] or Decimal('0.00')
+            final_now = (Decimal(items_total) - Decimal(order.discount))
+            total_paid_now = order.total_payments()
+            is_paid_now = total_paid_now >= final_now and final_now > Decimal('0.00')
+            Order.objects.filter(id=order.id).update(is_paid=is_paid_now)
+            order.refresh_from_db()
             
             # Retourner les données mises à jour
             payments_html = render_to_string('include/payments_container.html', {
@@ -599,9 +617,9 @@ def ajax_delete_payment(request, pk, payment_id):
                 'success': True,
                 'payments_html': payments_html,
                 'total_payments': str(order.total_payments()),
-                'remaining_amount': str(order.remaining_amount()),
-                'payment_percentage': round(order.payment_percentage(), 1),
-                'is_fully_paid': order.is_fully_paid()
+                'remaining_amount': str(max(Decimal('0.00'), final_now - order.total_payments())),
+                'payment_percentage': round((order.total_payments() / final_now * 100) if final_now > 0 else 0, 1),
+                'is_fully_paid': order.is_paid
             })
             
         except Exception as e:

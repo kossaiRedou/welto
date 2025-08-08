@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Client
+from users.models import AppSetting
 
 
 @admin.register(Client)
@@ -32,5 +33,5 @@ class ClientAdmin(admin.ModelAdmin):
     
     def total_spent(self, obj):
         """Afficher le montant total dépensé"""
-        return f"{obj.total_spent()} GMD"
+        return f"{obj.total_spent()} {AppSetting.get_currency_label()}"
     total_spent.short_description = 'Total Dépensé'

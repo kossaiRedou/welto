@@ -17,7 +17,8 @@ from .models import (
     TypeDepense, Depense, MouvementStock, TypeMouvement, 
     Approvisionnement
 )
-from product.models import Product, Category, LOW_STOCK_THRESHOLD
+from product.models import Product, Category, get_low_stock_threshold
+from users.models import AppSetting
 from order.models import Order, OrderItem
 
 
@@ -99,7 +100,7 @@ def dashboard_view(request):
     # === PRODUITS À RÉAPPROVISIONNER ===
     # Produits avec stock faible (moins de 5 unités)
     produits_stock_faible = Product.objects.filter(
-        active=True, qty__lt=LOW_STOCK_THRESHOLD, qty__gt=0
+        active=True, qty__lt=get_low_stock_threshold(), qty__gt=0
     ).order_by('qty')[:10]
     
     # Produits en rupture
@@ -120,6 +121,8 @@ def dashboard_view(request):
         'date_fin': date_fin,
         'categorie': categorie,
         'categories': Category.objects.all(),
+        'currency': AppSetting.get_currency_label(),
+        "seuil_stock": get_low_stock_threshold(),
     }
     
     return render(request, 'aprovision/dashboard.html', context)
@@ -381,6 +384,21 @@ def analytics_dashboard(request):
         nombre=Count('id')
     ).order_by('-total')
     
+    # === SÉRIES DÉPENSES PAR JOUR (POUR LE GRAPHIQUE) ===
+    depenses_series = (
+        depenses_periode.values('date_depense')
+        .annotate(total=Sum('montant'))
+        .order_by('date_depense')
+    )
+    # Adapter au format attendu par le template JS
+    depenses_par_jour = [
+        {
+            'date_depense': d['date_depense'].strftime('%Y-%m-%d') if d['date_depense'] else None,
+            'total': float(d['total'] or 0),
+        }
+        for d in depenses_series
+    ]
+
     # === STATISTIQUES DE VENTE ===
     # Commandes de la période (avec des produits vendus)
     commandes_periode = Order.objects.filter(
@@ -468,6 +486,14 @@ def analytics_dashboard(request):
         nombre=Count('id'),
         quantite_totale=Sum('quantite')
     )
+
+    # Coût total des approvisionnements (entrées) pour la période
+    total_approvisionnements = (
+        mouvements_periode.filter(
+            type_mouvement=TypeMouvement.ENTREE, cout_total__isnull=False
+        ).aggregate(total=Sum('cout_total'))['total']
+        or 0
+    )
     
     # === TOP PRODUITS ===
     # Produits les plus vendus
@@ -496,7 +522,7 @@ def analytics_dashboard(request):
     
     # === ÉVOLUTION DES VENTES ===
     # Données pour le graphique d'évolution des ventes
-    ventes_par_jour = Order.objects.filter(
+    ventes_series = Order.objects.filter(
         date__gte=date_debut,
         date__lte=date_fin,
         order_items__isnull=False
@@ -511,17 +537,14 @@ def analytics_dashboard(request):
             order_items__product__category=categorie
         )
     
-    # Préparer les données pour Chart.js
-    chart_data = {
-        'labels': [vente['date'].strftime('%d/%m') for vente in ventes_par_jour],
-        'datasets': [{
-            'label': 'Ventes (GMD)',
-            'data': [float(vente['total_ventes']) for vente in ventes_par_jour],
-            'borderColor': 'rgb(75, 192, 192)',
-            'backgroundColor': 'rgba(75, 192, 192, 0.2)',
-            'tension': 0.1
-        }]
-    }
+    # Adapter au format attendu par le template JS
+    ventes_par_jour = [
+        {
+            'date': v['date'].strftime('%Y-%m-%d') if v['date'] else None,
+            'total': float(v['total_ventes'] or 0),
+        }
+        for v in ventes_series
+    ]
     
     context = {
         # === PÉRIODE ET FILTRES ===
@@ -529,10 +552,12 @@ def analytics_dashboard(request):
         'date_fin': date_fin,
         'categorie': categorie,
         'categories': Category.objects.all(),
+        'currency': AppSetting.get_currency_label(),
         
         # === STATISTIQUES DÉPENSES ===
         'total_depenses': total_depenses,
         'depenses_par_type': depenses_par_type,
+        'total_approvisionnements': total_approvisionnements,
         
         # === STATISTIQUES VENTES ===
         'total_ventes_argent': total_ventes_argent,
@@ -551,7 +576,8 @@ def analytics_dashboard(request):
         'top_produits_mouvements': top_produits_mouvements,
         
         # === GRAPHIQUE ===
-        'chart_data': chart_data,
+        'depenses_par_jour': depenses_par_jour,
+        'ventes_par_jour': ventes_par_jour,
     }
     
     return render(request, 'aprovision/analytics_dashboard.html', context)
@@ -580,6 +606,20 @@ def ajax_analytics_data(request):
         total_depenses = depenses_periode.aggregate(
             total=Sum('montant')
         )['total'] or 0
+        
+        # Série dépenses par jour
+        depenses_series = (
+            depenses_periode.values('date_depense')
+            .annotate(total=Sum('montant'))
+            .order_by('date_depense')
+        )
+        depenses_par_jour = [
+            {
+                'date_depense': d['date_depense'].strftime('%Y-%m-%d') if d['date_depense'] else None,
+                'total': float(d['total'] or 0),
+            }
+            for d in depenses_series
+        ]
         
         # === STATISTIQUES VENTES ===
         commandes_periode = Order.objects.filter(
@@ -637,6 +677,20 @@ def ajax_analytics_data(request):
             for commande in commandes_impayees
         )
         
+        # === APPROVISIONNEMENTS ===
+        mouvements_periode = MouvementStock.objects.filter(
+            date_mouvement__date__gte=date_debut,
+            date_mouvement__date__lte=date_fin
+        )
+        if categorie:
+            mouvements_periode = mouvements_periode.filter(produit__category=categorie)
+        total_approvisionnements = (
+            mouvements_periode.filter(
+                type_mouvement=TypeMouvement.ENTREE, cout_total__isnull=False
+            ).aggregate(total=Sum('cout_total'))['total']
+            or 0
+        )
+        
         # === ÉVOLUTION DES VENTES ===
         ventes_par_jour = Order.objects.filter(
             date__gte=date_debut,
@@ -652,30 +706,29 @@ def ajax_analytics_data(request):
                 order_items__product__category=categorie
             )
         
-        chart_data = {
-            'labels': [vente['date'].strftime('%d/%m') for vente in ventes_par_jour],
-            'datasets': [{
-                'label': 'Ventes (GMD)',
-                'data': [float(vente['total_ventes']) for vente in ventes_par_jour],
-                'borderColor': 'rgb(75, 192, 192)',
-                'backgroundColor': 'rgba(75, 192, 192, 0.2)',
-                'tension': 0.1
-            }]
-        }
+        ventes_par_jour = [
+            {
+                'date': v['date'].strftime('%Y-%m-%d') if v['date'] else None,
+                'total': float(v['total_ventes'] or 0),
+            }
+            for v in ventes_par_jour
+        ]
         
         return JsonResponse({
             'success': True,
-            'stats': {
-                'total_depenses': total_depenses,
-                'total_ventes_argent': total_ventes_argent,
-                'total_ventes_nombre_commandes': total_ventes_nombre_commandes,
-                'total_ventes_nombre_produits': total_ventes_nombre_produits,
-                'panier_moyen': panier_moyen,
-                'marge_beneficiaire': marge_beneficiaire,
-                'benefice': benefice,
-                'reste_a_payer': reste_a_payer,
-            },
-            'chart_data': chart_data
+            # KPI plats attendus par le JS côté client
+            'total_depenses': float(total_depenses),
+            'total_approvisionnements': float(total_approvisionnements),
+            'total_ventes_argent': float(total_ventes_argent),
+            'total_ventes_nombre_commandes': int(total_ventes_nombre_commandes),
+            'total_ventes_nombre_produits': int(total_ventes_nombre_produits),
+            'panier_moyen': float(panier_moyen),
+            'marge_beneficiaire': float(marge_beneficiaire),
+            'benefice': float(benefice),
+            'reste_a_payer': float(reste_a_payer),
+            # Séries pour les graphiques
+            'depenses_par_jour': depenses_par_jour,
+            'ventes_par_jour': ventes_par_jour,
         })
     
     return JsonResponse({'success': False, 'error': 'Méthode non autorisée'})

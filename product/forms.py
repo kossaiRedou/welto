@@ -37,8 +37,8 @@ class SimpleProductForm(forms.ModelForm):
         labels = {
             'title': 'Nom du Produit',
             'category': 'Catégorie',
-            'value': 'Prix Normal (GMD)',
-            'discount_value': 'Prix Réduit (GMD)',
+            'value': 'Prix Normal',
+            'discount_value': 'Prix Réduit',
             'active': 'Produit Actif'
         }
         help_texts = {

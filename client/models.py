@@ -33,6 +33,14 @@ class Client(models.Model):
         last_order = self.orders.first()  # Grâce à ordering = ['-date'] dans Order
         return last_order.date if last_order else None
     
+    def total_unpaid_amount(self):
+        """Montant total impayé du client (tenant compte des paiements échelonnés)"""
+        from decimal import Decimal
+        total_unpaid = Decimal('0.00')
+        for order in self.orders.filter(is_paid=False):
+            total_unpaid += order.remaining_amount()
+        return total_unpaid
+    
     @classmethod
     def search_by_phone(cls, phone_query):
         """Recherche client par numéro de téléphone (partiel)"""
